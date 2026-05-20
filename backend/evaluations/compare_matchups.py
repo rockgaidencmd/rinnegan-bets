@@ -18,6 +18,7 @@ from core.bankroll.tracker import BankrollTracker
 from core.features.extractor import extract_team_features
 from core.models.factory import get_model_for_league
 from core.types import MatchContext
+from data.team_search import TeamSearchError, find_teams_by_name, resolve_matchup
 from db.database import SessionLocal
 from db.models import Match, Team
 
@@ -43,30 +44,14 @@ MATCHUPS = [
 VERDICT_ICONS = {"apostar": "🟢", "esperar": "🟡", "no_apostar": "🔴"}
 
 
-def find_team(session, name: str) -> Team | None:
-    return session.execute(
-        select(Team).where(Team.name.ilike(f"%{name}%")).limit(1)
-    ).scalar_one_or_none()
-
-
 def find_shared_league(home_name: str, away_name: str, session) -> tuple[Team, Team, str] | None:
-    home_rows = session.execute(
-        select(Team).where(Team.name.ilike(f"%{home_name}%"))
-    ).scalars().all()
-    away_rows = session.execute(
-        select(Team).where(Team.name.ilike(f"%{away_name}%"))
-    ).scalars().all()
-
-    home_leagues = {t.league for t in home_rows}
-    away_leagues = {t.league for t in away_rows}
-    shared = home_leagues & away_leagues
-    domestic = shared - {"CL", "LIB"}
-    league = (sorted(domestic) or sorted(shared) or [None])[0]
-    if league is None:
+    """Wrapper that returns None instead of raising — convenient for batch mode."""
+    try:
+        home_rows = find_teams_by_name(session, home_name)
+        away_rows = find_teams_by_name(session, away_name)
+        return resolve_matchup(home_rows, away_rows, force=False)
+    except TeamSearchError:
         return None
-    home = next(t for t in home_rows if t.league == league)
-    away = next(t for t in away_rows if t.league == league)
-    return home, away, league
 
 
 def get_last_matches(session, team_id: int, limit: int = 10):
