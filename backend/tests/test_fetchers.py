@@ -223,19 +223,6 @@ class TestSofaScoreFetcher:
         assert xg_stat["home"] == "1.5"
 
     @responses.activate
-    def test_get_live_events(self, cache):
-        responses.add(
-            responses.GET,
-            "https://api.sofascore.com/api/v1/sport/football/events/live",
-            json={"events": [{"id": 1, "status": {"type": "inprogress"}}]},
-            status=200,
-        )
-
-        f = SofaScoreFetcher(cache)
-        result = f.get_live_events()
-        assert len(result["events"]) == 1
-
-    @responses.activate
     def test_cache_namespacing_prevents_collisions(self, cache):
         """Both fetchers can cache 'seasons:8' without colliding."""
         responses.add(

@@ -68,20 +68,6 @@ class SofaScoreFetcher(BaseFetcher):
             ttl=timedelta(days=7),
         )
 
-    def get_team_last_events(self, team_id: int, page: int = 0) -> dict:
-        """Get paginated finished events for a team.
-
-        WARNING: page=0 returns events from a PRIOR season, not the most recent.
-        For current-season recent matches, use get_team_performance() instead.
-        Keeping this method for historical/seasonal queries.
-        """
-        url = f"{BASE_URL}/team/{team_id}/events/last/{page}"
-        return self._fetch_json(
-            url,
-            cache_key=self._cache_key("team_last", team_id, page),
-            ttl=timedelta(hours=1),
-        )
-
     def get_team_performance(self, team_id: int) -> dict:
         """Get team's last 10 ACTUAL recent matches (current form).
 
@@ -114,14 +100,3 @@ class SofaScoreFetcher(BaseFetcher):
             ttl=timedelta(hours=24),
         )
 
-    def get_live_events(self) -> dict:
-        """Get all currently live football matches worldwide.
-
-        Cache: 30 seconds (live data changes fast).
-        """
-        url = f"{BASE_URL}/sport/football/events/live"
-        return self._fetch_json(
-            url,
-            cache_key=self._cache_key("live"),
-            ttl=timedelta(seconds=30),
-        )

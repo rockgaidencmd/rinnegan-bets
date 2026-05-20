@@ -63,45 +63,6 @@ def parse_team_performance(payload: dict) -> list[ParsedMatch]:
     return parsed
 
 
-def parse_team_events(payload: dict, league_code: str) -> list[ParsedMatch]:
-    """Convert SofaScore team events response to ParsedMatch list (no stats yet).
-
-    Only includes finished matches (we want results we can validate).
-    """
-    events = payload.get("events", [])
-    parsed: list[ParsedMatch] = []
-
-    for event in events:
-        status = event.get("status", {}).get("type")
-        if status != "finished":
-            continue
-
-        if not _is_valid_event(event):
-            continue
-
-        home_goals = event.get("homeScore", {}).get("current")
-        away_goals = event.get("awayScore", {}).get("current")
-
-        parsed.append(ParsedMatch(
-            external_id=str(event["id"]),
-            source="sofascore",
-            league=league_code,
-            home_team_sofascore_id=event["homeTeam"]["id"],
-            away_team_sofascore_id=event["awayTeam"]["id"],
-            home_team_name=event["homeTeam"]["name"],
-            away_team_name=event["awayTeam"]["name"],
-            match_date=datetime.fromtimestamp(
-                event["startTimestamp"], tz=timezone.utc
-            ),
-            status=status,
-            home_goals=home_goals,
-            away_goals=away_goals,
-            result=_compute_result(home_goals, away_goals),
-        ))
-
-    return parsed
-
-
 def merge_statistics(match: ParsedMatch, stats_payload: dict) -> ParsedMatch:
     """Merge an event's statistics payload into an existing ParsedMatch.
 
