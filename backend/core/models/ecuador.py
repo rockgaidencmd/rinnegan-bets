@@ -119,7 +119,6 @@ def _blend(components: dict[str, float], weights: dict[str, float]) -> float:
 
 
 def _blend_probabilities(pre_score, implied):
-    from core.types import make_probability
-    model_prob = pre_score / 100.0
-    blended = 0.4 * model_prob + 0.6 * implied
-    return make_probability(min(0.95, max(0.05, blended)))
+    # Reuses the same blend ratio + clamping as the Europe model — single source.
+    from core.models.europe import _blend_probabilities as _blend
+    return _blend(pre_score, implied)

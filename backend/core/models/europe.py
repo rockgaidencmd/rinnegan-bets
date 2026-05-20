@@ -39,6 +39,17 @@ IMPORTANCE_MULTIPLIER = {
     "calendario": -0.5,
 }
 
+# How much weight to give the model vs the market when blending probabilities.
+# 0.4 reflects: the market is informed (many participants) so we trust it more,
+# but we still let our model edge tilt the final estimate.
+MODEL_BLEND_WEIGHT = 0.4
+MARKET_BLEND_WEIGHT = 1.0 - MODEL_BLEND_WEIGHT
+
+# Clamp probabilities — never assert near-certain (avoids Kelly recommending
+# all-in when the model is overconfident).
+MIN_PROB = 0.05
+MAX_PROB = 0.95
+
 
 @dataclass(frozen=True)
 class EuropeModel:
@@ -148,12 +159,11 @@ def _blend(components: dict[str, float], weights: dict[str, float]) -> float:
 def _blend_probabilities(pre_score: float, implied: Probability) -> Probability:
     """Blend our model with the market — neither alone is perfect.
 
-    Our edge = how much our prob differs from market's. We weight 40%
-    model, 60% market because the market is informed (many traders).
+    See MODEL_BLEND_WEIGHT / MARKET_BLEND_WEIGHT constants for the rationale.
     """
     model_prob = pre_score / 100.0
-    blended = 0.4 * model_prob + 0.6 * implied
-    return make_probability(min(0.95, max(0.05, blended)))
+    blended = MODEL_BLEND_WEIGHT * model_prob + MARKET_BLEND_WEIGHT * implied
+    return make_probability(min(MAX_PROB, max(MIN_PROB, blended)))
 
 
 def components_summary(home: TeamFeatures, away: TeamFeatures) -> str:

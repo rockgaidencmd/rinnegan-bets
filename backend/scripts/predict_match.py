@@ -24,7 +24,7 @@ from db.database import SessionLocal
 from db.models import Match, Team
 
 
-def get_last_matches(session, team_id: int, limit: int = 10) -> list[Match]:
+def get_last_matches(session, team_id: int, limit: int = RECENT_MATCHES_FOR_FEATURES) -> list[Match]:
     """Last N finished matches for a team (home or away)."""
     return session.execute(
         select(Match)
@@ -101,6 +101,14 @@ VERDICT_LABELS = {
     "no_apostar": "NO APOSTAR",
 }
 
+# Warn if the user's intended stake exceeds Kelly by more than this factor
+# (1.2x = 20% more than recommended). Below this margin we stay silent —
+# users often round up and that's fine.
+KELLY_OVERSTAKE_WARNING_MULT = 1.2
+
+# How many recent matches to pull from BD when extracting team features.
+RECENT_MATCHES_FOR_FEATURES = 10
+
 
 def _print_simple(home, away, league, prediction, bankroll, args):
     """Compact, human-friendly output — the default."""
@@ -142,7 +150,7 @@ def _print_simple(home, away, league, prediction, bankroll, args):
         print(f"    ❌ Empata o gana {away.name[:14]:<14}  → pierdes ${args.stake:.2f}")
         print(f"    📊 EV (ganancia esperada a la larga): ${prediction.ev:+.2f}")
         print(f"\n  💵 Stake recomendado (Kelly): ${recommended_stake:.2f}  de ${bankroll:.2f} bankroll")
-        if args.stake > recommended_stake * 1.2:
+        if args.stake > recommended_stake * KELLY_OVERSTAKE_WARNING_MULT:
             print(f"  ⚠️  Vas a apostar más que Kelly — riesgo elevado.")
     elif v == "esperar":
         print(f"  Edge marginal. Mejor esperar mejor cuota o más info.")
