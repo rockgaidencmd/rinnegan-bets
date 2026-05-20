@@ -22,14 +22,14 @@ BASE_URL = "https://api.sofascore.com/api/v1"
 # Tournament IDs discovered via DevTools. Keep here as catalog of supported leagues.
 # To find new ones: visit league page on sofascore.com, check Network tab for tournament IDs.
 TOURNAMENT_IDS = {
-    "PL": 17,      # Premier League
-    "PD": 8,       # La Liga
-    "BL1": 35,     # Bundesliga
-    "SA": 23,      # Serie A
-    "FL1": 34,     # Ligue 1
-    "CL": 7,       # Champions League
-    "LIB": 384,    # Copa Libertadores
-    "EC1": 240,    # Liga Pro Ecuador (verify with live test)
+    "PL": 17,       # Premier League
+    "PD": 8,        # La Liga
+    "BL1": 35,      # Bundesliga
+    "SA": 23,       # Serie A
+    "FL1": 34,      # Ligue 1
+    "CL": 7,        # Champions League
+    "LIB": 16940,   # Copa Libertadores (verified 2026-05-19)
+    "EC1": 240,     # LigaPro Serie A Ecuador (verified 2026-05-19)
 }
 
 
