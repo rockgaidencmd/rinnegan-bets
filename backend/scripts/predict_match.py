@@ -24,6 +24,29 @@ from db.database import SessionLocal
 from db.models import Match, Team
 
 
+# --- Constants ---
+
+VERDICT_ICONS = {
+    "apostar": "🟢",
+    "esperar": "🟡",
+    "no_apostar": "🔴",
+}
+
+VERDICT_LABELS = {
+    "apostar": "APOSTAR",
+    "esperar": "ESPERAR",
+    "no_apostar": "NO APOSTAR",
+}
+
+# Warn if the user's intended stake exceeds Kelly by more than this factor
+# (1.2x = 20% more than recommended). Below this margin we stay silent —
+# users often round up and that's fine.
+KELLY_OVERSTAKE_WARNING_MULT = 1.2
+
+# How many recent matches to pull from BD when extracting team features.
+RECENT_MATCHES_FOR_FEATURES = 10
+
+
 def get_last_matches(session, team_id: int, limit: int = RECENT_MATCHES_FOR_FEATURES) -> list[Match]:
     """Last N finished matches for a team (home or away)."""
     return session.execute(
@@ -89,81 +112,72 @@ def main() -> int:
 
 # --- Output formatters ---
 
-VERDICT_ICONS = {
-    "apostar": "🟢",
-    "esperar": "🟡",
-    "no_apostar": "🔴",
-}
-
-VERDICT_LABELS = {
-    "apostar": "APOSTAR",
-    "esperar": "ESPERAR",
-    "no_apostar": "NO APOSTAR",
-}
-
-# Warn if the user's intended stake exceeds Kelly by more than this factor
-# (1.2x = 20% more than recommended). Below this margin we stay silent —
-# users often round up and that's fine.
-KELLY_OVERSTAKE_WARNING_MULT = 1.2
-
-# How many recent matches to pull from BD when extracting team features.
-RECENT_MATCHES_FOR_FEATURES = 10
-
-
 def _print_simple(home, away, league, prediction, bankroll, args):
-    """Compact, human-friendly output — the default."""
-    v = prediction.verdict.verdict
-    icon = VERDICT_ICONS[v]
-    label = VERDICT_LABELS[v]
-
-    edge = prediction.my_prob - prediction.implied_prob
-    edge_pct = edge * 100
-    recommended_stake = prediction.kelly * bankroll if bankroll > 0 else 0
-    payout_if_win = args.stake * args.quota
-    profit_if_win = payout_if_win - args.stake
-
+    """Compact, human-friendly output — the default. Orchestrates section printers."""
     bar = "═" * 60
+    _print_header(home, away, league, args.quota, bar)
+    _print_verdict_line(prediction, home)
+    _print_probabilities(prediction, home)
+    _print_money_outcome(prediction, home, away, bankroll, args)
+    print(f"\n  💡 {_short_reasoning(home, away, prediction)}")
+    _print_footer(bar)
+
+
+def _print_header(home, away, league, quota, bar):
     print(f"\n{bar}")
     print(f"  {home.name}  vs  {away.name}  ({league})")
     print(f"  Mercado: VICTORIA LOCAL ({home.name})")
-    print(f"  Cuota: {args.quota}  →  apuestas a que GANA {home.name}")
+    print(f"  Cuota: {quota}  →  apuestas a que GANA {home.name}")
     print(f"{bar}\n")
-    print(f"  {icon}  {label}  a {home.name}\n")
 
-    # Probabilities — be explicit about what they refer to
+
+def _print_verdict_line(prediction, home):
+    v = prediction.verdict.verdict
+    print(f"  {VERDICT_ICONS[v]}  {VERDICT_LABELS[v]}  a {home.name}\n")
+
+
+def _print_probabilities(prediction, home):
+    edge = prediction.my_prob - prediction.implied_prob
+    edge_sign = "+" if edge >= 0 else ""
+    edge_note = _edge_interpretation(edge, home.name)
     print(f"  Probabilidad de que GANE {home.name}:")
     print(f"    Según el modelo: {prediction.my_prob:.1%}")
     print(f"    Según el mercado (1/cuota): {prediction.implied_prob:.1%}")
-    edge_sign = "+" if edge >= 0 else ""
-    if edge > 0.005:
-        edge_note = f"(mercado subestima a {home.name})"
-    elif edge < -0.005:
-        edge_note = f"(mercado tiene razón o sobreestima a {home.name})"
-    else:
-        edge_note = "(modelo y mercado de acuerdo)"
-    print(f"    Edge: {edge_sign}{edge_pct:.1f}%  {edge_note}\n")
+    print(f"    Edge: {edge_sign}{edge * 100:.1f}%  {edge_note}\n")
 
-    # Money — be explicit about what each outcome means
+
+def _edge_interpretation(edge: float, home_name: str) -> str:
+    if edge > 0.005:
+        return f"(mercado subestima a {home_name})"
+    if edge < -0.005:
+        return f"(mercado tiene razón o sobreestima a {home_name})"
+    return "(modelo y mercado de acuerdo)"
+
+
+def _print_money_outcome(prediction, home, away, bankroll, args):
+    v = prediction.verdict.verdict
+    if v == "esperar":
+        print(f"  Edge marginal. Mejor esperar mejor cuota o más info.")
+        print(f"  💰 Bankroll: ${bankroll:.2f}")
+        return
+
+    payout_if_win = args.stake * args.quota
+    profit_if_win = payout_if_win - args.stake
+    print(f"  Si apuestas ${args.stake:.0f} a que gana {home.name}:")
+    print(f"    ✅ Gana {home.name:<22} → cobras ${payout_if_win:.2f}  (+${profit_if_win:.2f})")
+    print(f"    ❌ Empata o gana {away.name[:14]:<14}  → pierdes ${args.stake:.2f}")
+    print(f"    📊 EV (esperado a la larga): ${prediction.ev:+.2f}")
+
     if v == "apostar":
-        print(f"  Si apuestas ${args.stake:.0f} a que gana {home.name}:")
-        print(f"    ✅ Gana {home.name:<22} → cobras ${payout_if_win:.2f}  (+${profit_if_win:.2f})")
-        print(f"    ❌ Empata o gana {away.name[:14]:<14}  → pierdes ${args.stake:.2f}")
-        print(f"    📊 EV (ganancia esperada a la larga): ${prediction.ev:+.2f}")
+        recommended_stake = prediction.kelly * bankroll if bankroll > 0 else 0
         print(f"\n  💵 Stake recomendado (Kelly): ${recommended_stake:.2f}  de ${bankroll:.2f} bankroll")
         if args.stake > recommended_stake * KELLY_OVERSTAKE_WARNING_MULT:
             print(f"  ⚠️  Vas a apostar más que Kelly — riesgo elevado.")
-    elif v == "esperar":
-        print(f"  Edge marginal. Mejor esperar mejor cuota o más info.")
-        print(f"  💰 Bankroll: ${bankroll:.2f}")
     else:  # no_apostar
-        print(f"  Si apuestas ${args.stake:.0f} a que gana {home.name}:")
-        print(f"    ✅ Gana {home.name:<22} → cobras ${payout_if_win:.2f}  (+${profit_if_win:.2f})")
-        print(f"    ❌ Empata o gana {away.name[:14]:<14}  → pierdes ${args.stake:.2f}")
-        print(f"    📊 EV (esperado a la larga): ${prediction.ev:+.2f}  (negativo = pierdes)")
-        print(f"\n  Kelly = 0% (no apostar nada)")
+        print(f"  Kelly = 0% (no apostar nada)")
 
-    # Quick reasoning
-    print(f"\n  💡 {_short_reasoning(home, away, prediction)}")
+
+def _print_footer(bar):
     print(f"\n  {bar}")
     print(f"  Detalle técnico: --verbose")
     print(f"  Nota: el modelo solo predice VICTORIA LOCAL (mercado 1X2 → 1).")
