@@ -106,6 +106,8 @@ def main() -> int:
     parser.add_argument("--away-absences", action="store_true")
     parser.add_argument("--force", action="store_true",
                         help="Predict even if teams don't share a real-world league")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="Show full breakdown: features, components, weights")
     args = parser.parse_args()
 
     session = SessionLocal()
@@ -118,17 +120,116 @@ def main() -> int:
         print(str(e))
         return 2
 
+    home_matches = get_last_matches(session, home.id)
+    away_matches = get_last_matches(session, away.id)
+    home_features = extract_team_features(home_matches, home.id)
+    away_features = extract_team_features(away_matches, away.id)
+
+    context = MatchContext(
+        importance=args.importance,
+        home_key_absences=args.home_absences,
+        away_key_absences=args.away_absences,
+    )
+    model = get_model_for_league(league)
+    prediction = model.predict(home_features, away_features, context, args.quota, args.stake)
+
+    tracker = BankrollTracker(session)
+    bankroll = tracker.get_available_balance()
+
+    if args.verbose:
+        _print_verbose(home, away, league, home_features, away_features,
+                       prediction, bankroll, args)
+    else:
+        _print_simple(home, away, league, prediction, bankroll, args)
+
+    session.close()
+    return 0
+
+
+# --- Output formatters ---
+
+VERDICT_ICONS = {
+    "apostar": "🟢",
+    "esperar": "🟡",
+    "no_apostar": "🔴",
+}
+
+VERDICT_LABELS = {
+    "apostar": "APOSTAR",
+    "esperar": "ESPERAR",
+    "no_apostar": "NO APOSTAR",
+}
+
+
+def _print_simple(home, away, league, prediction, bankroll, args):
+    """Compact, human-friendly output — the default."""
+    v = prediction.verdict.verdict
+    icon = VERDICT_ICONS[v]
+    label = VERDICT_LABELS[v]
+
+    edge = prediction.my_prob - prediction.implied_prob
+    edge_pct = edge * 100
+    recommended_stake = prediction.kelly * bankroll if bankroll > 0 else 0
+
+    bar = "═" * 60
+    print(f"\n{bar}")
+    print(f"  {home.name}  vs  {away.name}  ({league})")
+    print(f"{bar}\n")
+    print(f"  {icon}  {label}\n")
+
+    # Probabilities
+    print(f"  Tu probabilidad:  {prediction.my_prob:.1%}")
+    print(f"  Mercado dice:     {prediction.implied_prob:.1%}")
+    edge_sign = "+" if edge >= 0 else ""
+    edge_note = "(tu favor)" if edge > 0.005 else ("(mercado tiene razón)" if edge < -0.005 else "")
+    print(f"  Edge:             {edge_sign}{edge_pct:.1f}%  {edge_note}\n")
+
+    # Money
+    if v == "apostar":
+        print(f"  Si apuestas ${args.stake:.0f} → EV: ${prediction.ev:+.2f}  (esperado a la larga)")
+        print(f"  💵 Stake recomendado (Kelly): ${recommended_stake:.2f}  de ${bankroll:.2f} bankroll")
+        if args.stake > recommended_stake * 1.2:
+            print(f"  ⚠️  Vas a apostar más que Kelly — riesgo elevado.")
+    elif v == "esperar":
+        print(f"  Edge marginal. Mejor esperar mejor cuota o más info.")
+        print(f"  💰 Bankroll: ${bankroll:.2f}")
+    else:  # no_apostar
+        print(f"  Si apuestas ${args.stake:.0f} → EV: ${prediction.ev:+.2f}  (pierdes a la larga)")
+        print(f"  Kelly = 0% (no apostar nada)")
+
+    # Quick reasoning
+    print(f"\n  💡 {_short_reasoning(home, away, prediction)}")
+    print(f"\n  {bar}")
+    print(f"  Detalle técnico: --verbose\n")
+
+
+def _short_reasoning(home, away, prediction):
+    """One-line summary of why."""
+    comp = prediction.reasoning["components"]
+    weights = prediction.reasoning["weights"]
+    # Find the biggest contributor (signal × weight)
+    contributions = {k: comp[k] * weights[k] for k in weights}
+    top = max(contributions, key=lambda k: abs(contributions[k]))
+    direction = "favorece local" if contributions[top] > 0 else "favorece visitante"
+    pretty = {
+        "xg_diff": f"diferencia de xG {direction}",
+        "shots_diff": f"tiros al arco {direction}",
+        "form_diff": f"forma reciente {direction}",
+        "goal_diff": f"goles recientes {direction}",
+        "possession_diff": f"posesión {direction}",
+        "home_advantage": "localía pesa",
+        "context": "contexto (importancia/ausencias)",
+    }.get(top, top)
+    return f"Factor principal: {pretty}"
+
+
+def _print_verbose(home, away, league, home_features, away_features,
+                   prediction, bankroll, args):
+    """Full detail output — for debugging or curiosity."""
     print(f"\n{'=' * 70}")
     print(f"PREDICTION: {home.name}  vs  {away.name}")
     print(f"League: {league}  |  Quota: {args.quota}  |  Stake: ${args.stake}")
     print(f"{'=' * 70}\n")
-
-    home_matches = get_last_matches(session, home.id)
-    away_matches = get_last_matches(session, away.id)
-    print(f"Data: {len(home_matches)} home matches, {len(away_matches)} away matches\n")
-
-    home_features = extract_team_features(home_matches, home.id)
-    away_features = extract_team_features(away_matches, away.id)
 
     print(f"--- {home.name} (last {home_features.matches_analyzed}) ---")
     print(f"  Form: {home_features.wins}W {home_features.draws}D {home_features.losses}L"
@@ -146,16 +247,7 @@ def main() -> int:
     if away_features.avg_xg_for:
         print(f"  xG: {away_features.avg_xg_for:.2f} vs {away_features.avg_xg_against:.2f}")
 
-    print()
-    context = MatchContext(
-        importance=args.importance,
-        home_key_absences=args.home_absences,
-        away_key_absences=args.away_absences,
-    )
-    model = get_model_for_league(league)
-    prediction = model.predict(home_features, away_features, context, args.quota, args.stake)
-
-    print(f"{'=' * 70}")
+    print(f"\n{'=' * 70}")
     print(f"VERDICT: {prediction.verdict.verdict.upper()}")
     print(f"{'=' * 70}")
     print(f"  Model: {prediction.model_version}")
@@ -167,9 +259,6 @@ def main() -> int:
     print(f"  Kelly: {prediction.kelly:.1%} of bankroll")
     print(f"  Reason: {prediction.verdict.reason}")
 
-    # Stake recommendation in real dollars based on bankroll
-    tracker = BankrollTracker(session)
-    bankroll = tracker.get_available_balance()
     if bankroll > 0:
         recommended_stake = prediction.kelly * bankroll
         print(f"\n  💰 Bankroll disponible: ${bankroll:.2f}")
@@ -178,17 +267,12 @@ def main() -> int:
             print(f"     (Vas a apostar ${args.stake:.2f} — menos que Kelly. Conservador, OK.)")
         elif recommended_stake < args.stake:
             print(f"     ⚠️  Vas a apostar ${args.stake:.2f} — MÁS que Kelly. Riesgo elevado.")
-    else:
-        print(f"\n  💰 Bankroll vacío. Inicialízalo con: python scripts/bankroll.py deposit 150")
 
     print(f"\nComponent breakdown:")
     for name, value in prediction.reasoning["components"].items():
         weight = prediction.reasoning["weights"][name]
         contribution = value * weight
         print(f"  {name:18s}  signal={value:+.2f}  weight={weight:.2f}  → {contribution:+.3f}")
-
-    session.close()
-    return 0
 
 
 if __name__ == "__main__":

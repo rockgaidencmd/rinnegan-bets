@@ -48,6 +48,10 @@ ENV/
 *.sqlite3
 rinnegan.db
 
+# Evaluation run outputs (scripts are committed, results are not)
+backend/evaluations/runs/*
+!backend/evaluations/runs/.gitkeep
+
 # Logs
 *.log
 npm-debug.log*
