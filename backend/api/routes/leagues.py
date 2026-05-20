@@ -1,0 +1,114 @@
+"""League catalog + match listing endpoints."""
+
+from fastapi import APIRouter, HTTPException, Query
+from sqlalchemy import func, or_, select
+
+from api.deps import DbSession
+from api.schemas.leagues import (
+    LEAGUE_DISPLAY,
+    LeagueListResponse,
+    LeagueSummary,
+    MatchListResponse,
+    MatchSummary,
+)
+from api.schemas.teams import TeamResponse
+from db.models import Match, Team
+
+
+router = APIRouter(prefix="/api", tags=["catalog"])
+
+
+# Country mapping for league display
+LEAGUE_COUNTRIES = {
+    "PL": "England",
+    "PD": "Spain",
+    "BL1": "Germany",
+    "SA": "Italy",
+    "FL1": "France",
+    "CL": "Europe",
+    "LIB": "South America",
+    "EC1": "Ecuador",
+}
+
+
+@router.get("/leagues", response_model=LeagueListResponse)
+def list_leagues(db: DbSession) -> LeagueListResponse:
+    """All leagues with team + match counts."""
+    team_counts = dict(db.execute(
+        select(Team.league, func.count(Team.id)).group_by(Team.league)
+    ).all())
+    match_counts = dict(db.execute(
+        select(Match.league, func.count(Match.id)).group_by(Match.league)
+    ).all())
+
+    leagues = []
+    for code in sorted(team_counts.keys() | match_counts.keys()):
+        leagues.append(LeagueSummary(
+            code=code,
+            name=LEAGUE_DISPLAY.get(code, code),
+            country=LEAGUE_COUNTRIES.get(code),
+            team_count=team_counts.get(code, 0),
+            match_count=match_counts.get(code, 0),
+        ))
+
+    return LeagueListResponse(leagues=leagues, total=len(leagues))
+
+
+@router.get("/leagues/{league_code}/teams", response_model=list[TeamResponse])
+def list_teams_by_league(league_code: str, db: DbSession) -> list[TeamResponse]:
+    """All teams in a league, alphabetically."""
+    teams = db.execute(
+        select(Team).where(Team.league == league_code).order_by(Team.name)
+    ).scalars().all()
+    if not teams:
+        raise HTTPException(404, f"No teams found for league '{league_code}'")
+    return [TeamResponse.model_validate(t) for t in teams]
+
+
+@router.get("/matches", response_model=MatchListResponse)
+def list_matches(
+    db: DbSession,
+    league: str | None = Query(None, description="Filter by league code"),
+    team_id: int | None = Query(None, description="Filter by team participation"),
+    limit: int = Query(20, ge=1, le=100),
+) -> MatchListResponse:
+    """List recent finished matches, optionally filtered by league or team."""
+    query = (
+        select(Match)
+        .where(Match.home_goals.is_not(None))
+        .order_by(Match.match_date.desc())
+    )
+    if league:
+        query = query.where(Match.league == league)
+    if team_id:
+        query = query.where(
+            or_(Match.home_team_id == team_id, Match.away_team_id == team_id)
+        )
+    matches = db.execute(query.limit(limit)).scalars().all()
+
+    # Pre-fetch team names in one query
+    team_ids = {m.home_team_id for m in matches} | {m.away_team_id for m in matches}
+    teams_by_id = {
+        t.id: t.name for t in db.execute(
+            select(Team).where(Team.id.in_(team_ids))
+        ).scalars().all()
+    }
+
+    results = [
+        MatchSummary(
+            id=m.id,
+            league=m.league,
+            match_date=m.match_date,
+            home_team_id=m.home_team_id,
+            home_team_name=teams_by_id.get(m.home_team_id, "?"),
+            away_team_id=m.away_team_id,
+            away_team_name=teams_by_id.get(m.away_team_id, "?"),
+            home_goals=m.home_goals,
+            away_goals=m.away_goals,
+            result=m.result,
+            home_xg=m.home_xg,
+            away_xg=m.away_xg,
+        )
+        for m in matches
+    ]
+    return MatchListResponse(matches=results, total=len(results))

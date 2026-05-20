@@ -52,6 +52,19 @@ export const api = {
   getTeamStats: (id, last = 10) =>
     request(`/api/teams/${id}/stats?last=${last}`),
 
+  // Catalog (Phase 8 — explore)
+  listLeagues: () => request('/api/leagues'),
+
+  getTeamsByLeague: (code) => request(`/api/leagues/${code}/teams`),
+
+  listMatches: ({ league, team_id, limit = 20 } = {}) => {
+    const params = new URLSearchParams();
+    if (league) params.set('league', league);
+    if (team_id) params.set('team_id', team_id);
+    params.set('limit', limit);
+    return request(`/api/matches?${params.toString()}`);
+  },
+
   // Predictions
   predict: (body) =>
     request('/api/predictions', {
