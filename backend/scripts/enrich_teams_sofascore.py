@@ -42,52 +42,92 @@ LEAGUE_COUNTRY = {
 }
 
 
-def search_team(name: str, expected_country: str | None) -> int | None:
-    """Search SofaScore for a team. Returns sofascore_id if confident match found."""
+# Football-Data uses official full names; SofaScore uses common short names.
+# Map known mismatches here so search finds them on retry.
+NAME_ALIASES = {
+    "FC Internazionale Milano": "Inter",
+    "Sport Lisboa e Benfica": "Benfica",
+    "PAE Olympiakos SFP": "Olympiakos",
+    "FC St. Pauli 1910": "St. Pauli",
+    "Stade Rennais FC 1901": "Stade Rennais",
+    "Qarabağ Ağdam FK": "Qarabag FK",
+    "FK Bodø/Glimt": "Bodo/Glimt",
+}
+
+
+def _query_search(query: str) -> list[dict]:
+    """Hit SofaScore search endpoint, return list of team candidates."""
     try:
         response = requests.get(
             SEARCH_URL,
-            params={"q": name},
+            params={"q": query},
             headers={"User-Agent": USER_AGENT},
             timeout=5,
         )
         if response.status_code != 200:
-            return None
+            return []
         results = response.json().get("results", [])
+        return [r for r in results if r.get("type") == "team"]
     except requests.RequestException:
-        return None
+        return []
 
-    candidates = [r for r in results if r.get("type") == "team"]
+
+def _best_match(
+    candidates: list[dict], query: str, expected_country: str | None
+) -> int | None:
+    """Pick the best matching team from search results."""
     if not candidates:
         return None
 
-    # First try: exact name + country match
+    # Tier 1: exact name + country match
     if expected_country:
         for r in candidates:
             ent = r.get("entity", {})
             if (
-                ent.get("name", "").lower() == name.lower()
+                ent.get("name", "").lower() == query.lower()
                 and ent.get("country", {}).get("name") == expected_country
             ):
                 return ent["id"]
 
-    # Second try: just country match, take highest-popularity result
+    # Tier 2: substring match + country
     if expected_country:
-        country_matches = [
-            r for r in candidates
-            if r.get("entity", {}).get("country", {}).get("name") == expected_country
-        ]
-        if country_matches:
-            return country_matches[0]["entity"]["id"]
+        for r in candidates:
+            ent = r.get("entity", {})
+            name = ent.get("name", "").lower()
+            if (
+                (query.lower() in name or name in query.lower())
+                and ent.get("country", {}).get("name") == expected_country
+            ):
+                return ent["id"]
 
-    # Third try: exact name match regardless of country
+    # Tier 3: exact name regardless of country (CL/LIB cases)
     for r in candidates:
         ent = r.get("entity", {})
-        if ent.get("name", "").lower() == name.lower():
+        if ent.get("name", "").lower() == query.lower():
             return ent["id"]
 
-    # Last resort: first candidate (may be wrong, but better than nothing)
+    # Tier 4: top result (last resort)
     return candidates[0]["entity"]["id"]
+
+
+def search_team(name: str, expected_country: str | None) -> int | None:
+    """Search SofaScore for a team. Tries the full name first, then alias if mapped.
+
+    Returns sofascore_id if found, else None.
+    """
+    # Build search attempts: full name + alias if known
+    attempts = [name]
+    if name in NAME_ALIASES:
+        attempts.append(NAME_ALIASES[name])
+
+    for query in attempts:
+        candidates = _query_search(query)
+        sofa_id = _best_match(candidates, query, expected_country)
+        if sofa_id:
+            return sofa_id
+        time.sleep(SLEEP_SECONDS)  # rate-limit between retries
+
+    return None
 
 
 def main() -> int:
