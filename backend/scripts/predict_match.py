@@ -111,37 +111,55 @@ def _print_simple(home, away, league, prediction, bankroll, args):
     edge = prediction.my_prob - prediction.implied_prob
     edge_pct = edge * 100
     recommended_stake = prediction.kelly * bankroll if bankroll > 0 else 0
+    payout_if_win = args.stake * args.quota
+    profit_if_win = payout_if_win - args.stake
 
     bar = "═" * 60
     print(f"\n{bar}")
     print(f"  {home.name}  vs  {away.name}  ({league})")
+    print(f"  Mercado: VICTORIA LOCAL ({home.name})")
+    print(f"  Cuota: {args.quota}  →  apuestas a que GANA {home.name}")
     print(f"{bar}\n")
-    print(f"  {icon}  {label}\n")
+    print(f"  {icon}  {label}  a {home.name}\n")
 
-    # Probabilities
-    print(f"  Tu probabilidad:  {prediction.my_prob:.1%}")
-    print(f"  Mercado dice:     {prediction.implied_prob:.1%}")
+    # Probabilities — be explicit about what they refer to
+    print(f"  Probabilidad de que GANE {home.name}:")
+    print(f"    Según el modelo: {prediction.my_prob:.1%}")
+    print(f"    Según el mercado (1/cuota): {prediction.implied_prob:.1%}")
     edge_sign = "+" if edge >= 0 else ""
-    edge_note = "(tu favor)" if edge > 0.005 else ("(mercado tiene razón)" if edge < -0.005 else "")
-    print(f"  Edge:             {edge_sign}{edge_pct:.1f}%  {edge_note}\n")
+    if edge > 0.005:
+        edge_note = f"(mercado subestima a {home.name})"
+    elif edge < -0.005:
+        edge_note = f"(mercado tiene razón o sobreestima a {home.name})"
+    else:
+        edge_note = "(modelo y mercado de acuerdo)"
+    print(f"    Edge: {edge_sign}{edge_pct:.1f}%  {edge_note}\n")
 
-    # Money
+    # Money — be explicit about what each outcome means
     if v == "apostar":
-        print(f"  Si apuestas ${args.stake:.0f} → EV: ${prediction.ev:+.2f}  (esperado a la larga)")
-        print(f"  💵 Stake recomendado (Kelly): ${recommended_stake:.2f}  de ${bankroll:.2f} bankroll")
+        print(f"  Si apuestas ${args.stake:.0f} a que gana {home.name}:")
+        print(f"    ✅ Gana {home.name:<22} → cobras ${payout_if_win:.2f}  (+${profit_if_win:.2f})")
+        print(f"    ❌ Empata o gana {away.name[:14]:<14}  → pierdes ${args.stake:.2f}")
+        print(f"    📊 EV (ganancia esperada a la larga): ${prediction.ev:+.2f}")
+        print(f"\n  💵 Stake recomendado (Kelly): ${recommended_stake:.2f}  de ${bankroll:.2f} bankroll")
         if args.stake > recommended_stake * 1.2:
             print(f"  ⚠️  Vas a apostar más que Kelly — riesgo elevado.")
     elif v == "esperar":
         print(f"  Edge marginal. Mejor esperar mejor cuota o más info.")
         print(f"  💰 Bankroll: ${bankroll:.2f}")
     else:  # no_apostar
-        print(f"  Si apuestas ${args.stake:.0f} → EV: ${prediction.ev:+.2f}  (pierdes a la larga)")
-        print(f"  Kelly = 0% (no apostar nada)")
+        print(f"  Si apuestas ${args.stake:.0f} a que gana {home.name}:")
+        print(f"    ✅ Gana {home.name:<22} → cobras ${payout_if_win:.2f}  (+${profit_if_win:.2f})")
+        print(f"    ❌ Empata o gana {away.name[:14]:<14}  → pierdes ${args.stake:.2f}")
+        print(f"    📊 EV (esperado a la larga): ${prediction.ev:+.2f}  (negativo = pierdes)")
+        print(f"\n  Kelly = 0% (no apostar nada)")
 
     # Quick reasoning
     print(f"\n  💡 {_short_reasoning(home, away, prediction)}")
     print(f"\n  {bar}")
-    print(f"  Detalle técnico: --verbose\n")
+    print(f"  Detalle técnico: --verbose")
+    print(f"  Nota: el modelo solo predice VICTORIA LOCAL (mercado 1X2 → 1).")
+    print(f"        Para otros mercados (over/under, BTTS) hace falta otro modelo.\n")
 
 
 def _short_reasoning(home, away, prediction):
