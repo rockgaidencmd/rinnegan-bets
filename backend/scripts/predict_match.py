@@ -22,14 +22,64 @@ from db.database import SessionLocal
 from db.models import Match, Team
 
 
-def find_team(session, name: str) -> Team:
-    """Find first team matching name (case-insensitive)."""
-    team = session.execute(
-        select(Team).where(Team.name.ilike(f"%{name}%")).limit(1)
-    ).scalar_one_or_none()
-    if not team:
+# Leagues where teams from different domestic leagues can legitimately meet
+INTERNATIONAL_LEAGUES = {"CL", "LIB"}
+
+
+def find_teams_by_name(session, name: str) -> list[Team]:
+    """Find all team rows matching name (a team can exist in multiple leagues)."""
+    teams = session.execute(
+        select(Team).where(Team.name.ilike(f"%{name}%"))
+    ).scalars().all()
+    if not teams:
         raise ValueError(f"Team not found: {name}")
-    return team
+    return teams
+
+
+def resolve_matchup(
+    home_candidates: list[Team], away_candidates: list[Team], force: bool,
+) -> tuple[Team, Team, str]:
+    """Pick the (home, away, league) tuple that represents a realistic matchup.
+
+    Logic:
+      1. If both teams share a league, use that (prefer domestic over CL/LIB).
+      2. If they share only an international league (CL/LIB), use that.
+      3. If no overlap → real teams that never face each other (Napoli vs Aucas).
+         Refuse unless --force is passed.
+    """
+    home_leagues = {t.league for t in home_candidates}
+    away_leagues = {t.league for t in away_candidates}
+    shared = home_leagues & away_leagues
+
+    # Prefer domestic shared league over international (CL/LIB)
+    domestic_shared = shared - INTERNATIONAL_LEAGUES
+    if domestic_shared:
+        league = sorted(domestic_shared)[0]
+    elif shared:
+        league = sorted(shared)[0]
+    elif force:
+        # User insists — pick home team's primary league for model selection
+        league = sorted(home_leagues)[0]
+        print(f"⚠️  WARNING: {home_candidates[0].name} ({sorted(home_leagues)}) "
+              f"and {away_candidates[0].name} ({sorted(away_leagues)}) "
+              f"play in different leagues — they would never meet IRL.")
+        print(f"   Using --force: predicting anyway with model for '{league}'.\n")
+        # Use the home team in `league`, but for away just pick any row
+        home = next(t for t in home_candidates if t.league == league)
+        away = away_candidates[0]
+        return home, away, league
+    else:
+        raise ValueError(
+            f"\n❌ '{home_candidates[0].name}' (leagues: {sorted(home_leagues)}) "
+            f"and '{away_candidates[0].name}' (leagues: {sorted(away_leagues)}) "
+            f"don't share any league.\n"
+            f"   These teams would never meet in reality.\n"
+            f"   Add --force to predict anyway (e.g. for a hypothetical/fantasy matchup)."
+        )
+
+    home = next(t for t in home_candidates if t.league == league)
+    away = next(t for t in away_candidates if t.league == league)
+    return home, away, league
 
 
 def get_last_matches(session, team_id: int, limit: int = 10) -> list[Match]:
@@ -53,13 +103,19 @@ def main() -> int:
                         choices=["final", "clasif", "normal", "calendario"])
     parser.add_argument("--home-absences", action="store_true")
     parser.add_argument("--away-absences", action="store_true")
+    parser.add_argument("--force", action="store_true",
+                        help="Predict even if teams don't share a real-world league")
     args = parser.parse_args()
 
     session = SessionLocal()
 
-    home = find_team(session, args.home)
-    away = find_team(session, args.away)
-    league = home.league if home.league == away.league else home.league
+    try:
+        home_candidates = find_teams_by_name(session, args.home)
+        away_candidates = find_teams_by_name(session, args.away)
+        home, away, league = resolve_matchup(home_candidates, away_candidates, args.force)
+    except ValueError as e:
+        print(str(e))
+        return 2
 
     print(f"\n{'=' * 70}")
     print(f"PREDICTION: {home.name}  vs  {away.name}")
