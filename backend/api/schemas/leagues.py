@@ -4,18 +4,11 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from core.leagues import LEAGUES
 
-# League names for display (internal codes → human-readable)
-LEAGUE_DISPLAY = {
-    "PL": "Premier League",
-    "PD": "La Liga",
-    "BL1": "Bundesliga",
-    "SA": "Serie A",
-    "FL1": "Ligue 1",
-    "CL": "Champions League",
-    "LIB": "Copa Libertadores",
-    "EC1": "LigaPro Ecuador",
-}
+
+# Display name lookup — derived from the single source of truth.
+LEAGUE_DISPLAY = {code: info.name for code, info in LEAGUES.items()}
 
 
 class LeagueSummary(BaseModel):

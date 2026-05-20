@@ -269,7 +269,9 @@ body { background: var(--bg); color: var(--text); font-family: 'Barlow Condensed
 
 /* MATCH HISTORY in modal */
 .match-history { display: flex; flex-direction: column; gap: 6px; }
-.match-row { display: grid; grid-template-columns: 28px 30px 1fr auto auto; gap: 10px; align-items: center; padding: 8px 12px; background: var(--s2); border-radius: 6px; font-size: 0.82rem; }
+.match-row { display: grid; grid-template-columns: 24px 56px 22px 1fr 40px auto auto; gap: 8px; align-items: center; padding: 8px 12px; background: var(--s2); border-radius: 6px; font-size: 0.82rem; }
+.match-date-small { color: var(--muted); font-size: 0.72rem; }
+.match-league-tag { background: var(--s3); padding: 2px 6px; border-radius: 4px; font-size: 0.62rem; color: var(--muted); text-align: center; }
 .match-result { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.72rem; background: var(--s3); }
 .match-result.res-w { background: rgba(0,245,160,0.15); color: var(--green); }
 .match-result.res-d { background: rgba(245,196,0,0.15); color: var(--yellow); }
@@ -323,6 +325,6 @@ body { background: var(--bg); color: var(--text); font-family: 'Barlow Condensed
   .main { max-width: 100%; padding: 14px 12px 60px; }
   .modal { padding: 18px 14px; max-height: 92vh; }
   .league-stats { gap: 10px; }
-  .match-row { grid-template-columns: 22px 24px 1fr auto; }
-  .match-row .match-xg { display: none; }
+  .match-row { grid-template-columns: 20px 50px 20px 1fr auto; gap: 6px; padding: 8px 10px; font-size: 0.78rem; }
+  .match-row .match-xg, .match-row .match-league-tag { display: none; }
 }

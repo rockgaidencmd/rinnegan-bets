@@ -20,6 +20,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 import requests
 from sqlalchemy import select
 
+from core.leagues import LEAGUES
 from db.database import SessionLocal
 from db.models import Team
 
@@ -29,17 +30,20 @@ SEARCH_URL = "https://api.sofascore.com/api/v1/search/all"
 SLEEP_SECONDS = 0.25  # Respect rate limits
 
 
-# Map our internal league code → SofaScore country name used in their search results
-LEAGUE_COUNTRY = {
-    "PL": "England",
-    "PD": "Spain",
-    "BL1": "Germany",
-    "SA": "Italy",
-    "FL1": "France",
-    "CL": None,    # Multiple countries; match by name only
-    "LIB": None,
-    "EC1": "Ecuador",
-}
+# Map our internal league code → search-helper country.
+# "Europe" and "South America" are too broad for SofaScore search disambiguation,
+# so we return None for them and the search falls back to name-only matching.
+_NON_NATIONAL_COUNTRIES = {"Europe", "South America"}
+
+
+def _country_for_search(league_code: str) -> str | None:
+    info = LEAGUES.get(league_code)
+    if info is None or info.country in _NON_NATIONAL_COUNTRIES:
+        return None
+    return info.country
+
+
+LEAGUE_COUNTRY = {code: _country_for_search(code) for code in LEAGUES}
 
 
 # Football-Data uses official full names; SofaScore uses common short names.

@@ -112,11 +112,16 @@ export function TeamDetailModal({ team, onClose }) {
                   const resultLetter = won ? 'G' : drew ? 'E' : 'P';
                   const teamXg = isHome ? m.home_xg : m.away_xg;
                   const oppXg = isHome ? m.away_xg : m.home_xg;
+                  const dateStr = new Date(m.match_date).toLocaleDateString('es-EC', {
+                    day: '2-digit', month: 'short',
+                  });
                   return (
                     <div key={m.id} className="match-row">
                       <span className={`match-result ${resultClass}`}>{resultLetter}</span>
+                      <span className="match-date-small mono">{dateStr}</span>
                       <span className="match-vs">{isHome ? 'vs' : 'en'}</span>
                       <span className="match-opp">{oppName}</span>
+                      <span className="match-league-tag mono">{m.league}</span>
                       <span className="match-score mono">
                         {teamGoals}-{oppGoals}
                       </span>

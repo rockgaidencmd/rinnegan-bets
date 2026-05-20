@@ -5,30 +5,17 @@ from sqlalchemy import func, or_, select
 
 from api.deps import DbSession
 from api.schemas.leagues import (
-    LEAGUE_DISPLAY,
     LeagueListResponse,
     LeagueSummary,
     MatchListResponse,
     MatchSummary,
 )
 from api.schemas.teams import TeamResponse
+from core.leagues import LEAGUES
 from db.models import Match, Team
 
 
 router = APIRouter(prefix="/api", tags=["catalog"])
-
-
-# Country mapping for league display
-LEAGUE_COUNTRIES = {
-    "PL": "England",
-    "PD": "Spain",
-    "BL1": "Germany",
-    "SA": "Italy",
-    "FL1": "France",
-    "CL": "Europe",
-    "LIB": "South America",
-    "EC1": "Ecuador",
-}
 
 
 @router.get("/leagues", response_model=LeagueListResponse)
@@ -43,10 +30,11 @@ def list_leagues(db: DbSession) -> LeagueListResponse:
 
     leagues = []
     for code in sorted(team_counts.keys() | match_counts.keys()):
+        info = LEAGUES.get(code)
         leagues.append(LeagueSummary(
             code=code,
-            name=LEAGUE_DISPLAY.get(code, code),
-            country=LEAGUE_COUNTRIES.get(code),
+            name=info.name if info else code,
+            country=info.country if info else None,
             team_count=team_counts.get(code, 0),
             match_count=match_counts.get(code, 0),
         ))

@@ -33,7 +33,7 @@ from data.fetchers.sofascore import SofaScoreFetcher
 from data.parsers import ParsedMatch
 from data.parsers.sofascore_match_parser import (
     merge_statistics,
-    parse_team_events,
+    parse_team_performance,
 )
 from db.database import SessionLocal
 from db.models import Match, Team
@@ -113,14 +113,20 @@ def seed_matches_for_team(
     session: Session, fetcher: SofaScoreFetcher,
     team: Team, per_team_limit: int,
 ) -> tuple[int, int]:
-    """Fetch and persist last N matches for one team. Returns (fetched, inserted)."""
+    """Fetch and persist recent matches for one team. Returns (fetched, inserted).
+
+    Uses the /performance endpoint which returns truly recent matches
+    (current season), not the prior-season data /events/last/0 returns.
+    Each match's `league` is resolved from its actual tournament — so a
+    Bayern match in Champions League gets league=CL, not BL1.
+    """
     try:
-        events_payload = fetcher.get_team_last_events(team.sofascore_id, page=0)
+        perf_payload = fetcher.get_team_performance(team.sofascore_id)
     except FetchError as e:
-        print(f"    ⚠️  Could not fetch events for {team.name}: {e}")
+        print(f"    ⚠️  Could not fetch performance for {team.name}: {e}")
         return 0, 0
 
-    parsed = parse_team_events(events_payload, league_code=team.league)
+    parsed = parse_team_performance(perf_payload)
     parsed = parsed[:per_team_limit]
 
     inserted = 0

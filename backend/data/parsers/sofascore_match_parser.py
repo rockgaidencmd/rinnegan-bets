@@ -3,7 +3,64 @@
 from dataclasses import replace
 from datetime import datetime, timezone
 
+from data.fetchers.sofascore import TOURNAMENT_IDS
 from data.parsers import ParsedMatch
+
+
+# Inverse of TOURNAMENT_IDS — derived, not hardcoded.
+# Add new leagues in ONE place: data/fetchers/sofascore.py::TOURNAMENT_IDS.
+SOFASCORE_TOURNAMENT_TO_LEAGUE = {v: k for k, v in TOURNAMENT_IDS.items()}
+
+
+def parse_team_performance(payload: dict) -> list[ParsedMatch]:
+    """Parse the /team/{id}/performance response.
+
+    Unlike parse_team_events, this resolves league PER MATCH from
+    tournament.uniqueTournament.id rather than receiving a single league
+    code (the team plays in multiple competitions — Liga + Cup + Champions).
+
+    Matches in tournaments we don't track (FA Cup, Copa Ecuador, friendlies)
+    are skipped — not included in the returned list.
+    """
+    events = payload.get("events", [])
+    parsed: list[ParsedMatch] = []
+
+    for event in events:
+        status = event.get("status", {}).get("type")
+        if status != "finished":
+            continue
+        if not _is_valid_event(event):
+            continue
+
+        tournament_id = (
+            event.get("tournament", {})
+            .get("uniqueTournament", {})
+            .get("id")
+        )
+        league_code = SOFASCORE_TOURNAMENT_TO_LEAGUE.get(tournament_id)
+        if league_code is None:
+            # Untracked competition — skip (don't pollute BD with friendlies/etc)
+            continue
+
+        home_goals = event.get("homeScore", {}).get("current")
+        away_goals = event.get("awayScore", {}).get("current")
+
+        parsed.append(ParsedMatch(
+            external_id=str(event["id"]),
+            source="sofascore",
+            league=league_code,
+            home_team_sofascore_id=event["homeTeam"]["id"],
+            away_team_sofascore_id=event["awayTeam"]["id"],
+            home_team_name=event["homeTeam"]["name"],
+            away_team_name=event["awayTeam"]["name"],
+            match_date=datetime.fromtimestamp(event["startTimestamp"], tz=timezone.utc),
+            status=status,
+            home_goals=home_goals,
+            away_goals=away_goals,
+            result=_compute_result(home_goals, away_goals),
+        ))
+
+    return parsed
 
 
 def parse_team_events(payload: dict, league_code: str) -> list[ParsedMatch]:

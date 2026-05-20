@@ -12,6 +12,7 @@ We mitigate this with:
 
 from datetime import timedelta
 
+from core.leagues import LEAGUES
 from data.cache import CacheService
 from data.fetchers.base import BaseFetcher
 
@@ -19,18 +20,9 @@ from data.fetchers.base import BaseFetcher
 BASE_URL = "https://api.sofascore.com/api/v1"
 
 
-# Tournament IDs discovered via DevTools. Keep here as catalog of supported leagues.
-# To find new ones: visit league page on sofascore.com, check Network tab for tournament IDs.
-TOURNAMENT_IDS = {
-    "PL": 17,       # Premier League
-    "PD": 8,        # La Liga
-    "BL1": 35,      # Bundesliga
-    "SA": 23,       # Serie A
-    "FL1": 34,      # Ligue 1
-    "CL": 7,        # Champions League
-    "LIB": 16940,   # Copa Libertadores (verified 2026-05-19)
-    "EC1": 240,     # LigaPro Serie A Ecuador (verified 2026-05-19)
-}
+# Derived from the single source of truth in core/leagues.py.
+# To add a new league: edit LEAGUES, not this dict.
+TOURNAMENT_IDS = {code: info.sofascore_id for code, info in LEAGUES.items()}
 
 
 class SofaScoreFetcher(BaseFetcher):
@@ -77,15 +69,35 @@ class SofaScoreFetcher(BaseFetcher):
         )
 
     def get_team_last_events(self, team_id: int, page: int = 0) -> dict:
-        """Get last finished matches of a team (paginated).
+        """Get paginated finished events for a team.
 
-        page=0 returns most recent. Each page has ~30 events.
-        Cache: 1h (new matches finish frequently during weekends).
+        WARNING: page=0 returns events from a PRIOR season, not the most recent.
+        For current-season recent matches, use get_team_performance() instead.
+        Keeping this method for historical/seasonal queries.
         """
         url = f"{BASE_URL}/team/{team_id}/events/last/{page}"
         return self._fetch_json(
             url,
             cache_key=self._cache_key("team_last", team_id, page),
+            ttl=timedelta(hours=1),
+        )
+
+    def get_team_performance(self, team_id: int) -> dict:
+        """Get team's last 10 ACTUAL recent matches (current form).
+
+        Unlike get_team_last_events(0), this returns truly recent finished
+        games across all competitions the team plays in.
+
+        Each event has tournament.uniqueTournament.id which lets us map
+        to our internal league code (PL, EC1, CL, etc.) per match instead
+        of inheriting the team's home league.
+
+        Cache: 1h.
+        """
+        url = f"{BASE_URL}/team/{team_id}/performance"
+        return self._fetch_json(
+            url,
+            cache_key=self._cache_key("team_perf", team_id),
             ttl=timedelta(hours=1),
         )
 
