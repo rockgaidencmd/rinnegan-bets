@@ -15,6 +15,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 
 from sqlalchemy import or_, select
 
+from core.bankroll.tracker import BankrollTracker
 from core.features.extractor import extract_team_features
 from core.models.factory import get_model_for_league
 from core.types import MatchContext
@@ -165,6 +166,20 @@ def main() -> int:
     print(f"  EV: ${prediction.ev:+.2f} on ${prediction.stake} stake")
     print(f"  Kelly: {prediction.kelly:.1%} of bankroll")
     print(f"  Reason: {prediction.verdict.reason}")
+
+    # Stake recommendation in real dollars based on bankroll
+    tracker = BankrollTracker(session)
+    bankroll = tracker.get_available_balance()
+    if bankroll > 0:
+        recommended_stake = prediction.kelly * bankroll
+        print(f"\n  💰 Bankroll disponible: ${bankroll:.2f}")
+        print(f"  💵 Stake recomendado (Kelly): ${recommended_stake:.2f}")
+        if recommended_stake > args.stake:
+            print(f"     (Vas a apostar ${args.stake:.2f} — menos que Kelly. Conservador, OK.)")
+        elif recommended_stake < args.stake:
+            print(f"     ⚠️  Vas a apostar ${args.stake:.2f} — MÁS que Kelly. Riesgo elevado.")
+    else:
+        print(f"\n  💰 Bankroll vacío. Inicialízalo con: python scripts/bankroll.py deposit 150")
 
     print(f"\nComponent breakdown:")
     for name, value in prediction.reasoning["components"].items():
