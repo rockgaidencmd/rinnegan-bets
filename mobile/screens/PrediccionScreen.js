@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -481,12 +482,48 @@ function TeamPicker({
 // --- ResultCard ---
 
 function ResultCard({ result, onReset }) {
+  const [placing, setPlacing] = useState(false);
+  const [placed, setPlaced] = useState(false);
+
   const verdictColor =
     result.verdict === 'apostar'
       ? C.success
       : result.verdict === 'esperar'
         ? C.warning
         : C.error;
+
+  const doPlace = async () => {
+    setPlacing(true);
+    try {
+      const predictionId = await api.savePrediction(result);
+      await api.placeBet({
+        prediction_id: predictionId,
+        quota: result.quota,
+        stake: result.stake,
+      });
+      setPlaced(true);
+    } catch (e) {
+      Alert.alert('No se pudo registrar la apuesta', e.message);
+    } finally {
+      setPlacing(false);
+    }
+  };
+
+  const handleBet = () => {
+    if (placed || placing) return;
+    if (result.verdict === 'apostar') {
+      doPlace();
+      return;
+    }
+    Alert.alert(
+      'El modelo no la recomienda',
+      `Verdict: ${result.verdict.toUpperCase()}. ¿Apostar igual?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Apostar', style: 'destructive', onPress: doPlace },
+      ],
+    );
+  };
 
   return (
     <View style={styles.resultCard}>
@@ -525,6 +562,40 @@ function ResultCard({ result, onReset }) {
       </View>
 
       <Text style={styles.reason}>{result.verdict_reason}</Text>
+
+      {placed ? (
+        <View style={styles.placedBox}>
+          <Ionicons name="checkmark-circle" size={16} color={C.success} />
+          <Text style={styles.placedText}>
+            Apuesta registrada. Liquídala en Banca.
+          </Text>
+        </View>
+      ) : (
+        <TouchableOpacity
+          style={[
+            styles.placeBetBtn,
+            result.verdict !== 'apostar' && styles.placeBetBtnOutline,
+          ]}
+          onPress={handleBet}
+          disabled={placing}
+        >
+          <Ionicons
+            name="cash"
+            size={16}
+            color={result.verdict === 'apostar' ? C.bg : C.accent}
+          />
+          <Text
+            style={[
+              styles.placeBetBtnText,
+              result.verdict !== 'apostar' && styles.placeBetBtnTextOutline,
+            ]}
+          >
+            {placing
+              ? 'Registrando...'
+              : `Apostar $${result.stake.toFixed(2)}`}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity style={styles.resetBtn} onPress={onReset}>
         <Text style={styles.resetBtnText}>Nueva predicción</Text>
@@ -811,6 +882,46 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
     paddingHorizontal: 8,
+  },
+  placeBetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: C.accent,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  placeBetBtnOutline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: C.accent,
+  },
+  placeBetBtnText: {
+    color: C.bg,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  placeBetBtnTextOutline: {
+    color: C.accent,
+  },
+  placedBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 245, 160, 0.08)',
+    borderWidth: 1,
+    borderColor: C.success,
+  },
+  placedText: {
+    color: C.textPrimary,
+    fontSize: 12,
+    fontWeight: '600',
   },
   resetBtn: {
     alignSelf: 'center',

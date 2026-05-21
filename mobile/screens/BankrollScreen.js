@@ -38,24 +38,40 @@ function formatDateTime(iso) {
 export default function BankrollScreen() {
   const [balance, setBalance] = useState(null);
   const [history, setHistory] = useState([]);
+  const [pendingBets, setPendingBets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [modalMode, setModalMode] = useState(null); // 'deposit' | 'withdraw' | null
+  const [settlingId, setSettlingId] = useState(null);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [bal, hist] = await Promise.all([
+      const [bal, hist, pend] = await Promise.all([
         api.getBalance(),
         api.getBankrollHistory(20),
+        api.listPendingBets(),
       ]);
       setBalance(bal);
       setHistory(hist.items || []);
+      setPendingBets(pend || []);
     } catch (e) {
       setError(e.message);
     }
   }, []);
+
+  const settle = async (bet, outcome) => {
+    setSettlingId(bet.id);
+    try {
+      await api.settleBet(bet.id, outcome);
+      await load();
+    } catch (e) {
+      Alert.alert('Error al liquidar', e.message);
+    } finally {
+      setSettlingId(null);
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -132,6 +148,52 @@ export default function BankrollScreen() {
           </View>
         )}
 
+        {!loading && pendingBets.length > 0 && (
+          <View style={styles.historySection}>
+            <Text style={styles.sectionTitle}>
+              Apuestas pendientes ({pendingBets.length})
+            </Text>
+            {pendingBets.map((b) => (
+              <View key={b.id} style={styles.betCard}>
+                <View style={styles.betHeader}>
+                  <Text style={styles.betLeague}>{b.league}</Text>
+                  <Text style={styles.betStake}>
+                    ${b.stake_amount.toFixed(2)} @ {b.quota_used.toFixed(2)}
+                  </Text>
+                </View>
+                <Text style={styles.betMatchup} numberOfLines={1}>
+                  {b.home_team_name}{' '}
+                  <Text style={styles.betVs}>vs</Text>{' '}
+                  {b.away_team_name}
+                </Text>
+                <View style={styles.settleRow}>
+                  <SettleBtn
+                    label="Ganada"
+                    color={C.success}
+                    onPress={() => settle(b, 'won')}
+                    disabled={settlingId !== null}
+                    loading={settlingId === b.id}
+                  />
+                  <SettleBtn
+                    label="Perdida"
+                    color={C.error}
+                    onPress={() => settle(b, 'lost')}
+                    disabled={settlingId !== null}
+                    loading={settlingId === b.id}
+                  />
+                  <SettleBtn
+                    label="Anulada"
+                    color={C.textMuted}
+                    onPress={() => settle(b, 'void')}
+                    disabled={settlingId !== null}
+                    loading={settlingId === b.id}
+                  />
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
         {!loading && history.length > 0 && (
           <View style={styles.historySection}>
             <Text style={styles.sectionTitle}>Movimientos recientes</Text>
@@ -169,6 +231,20 @@ export default function BankrollScreen() {
         }}
       />
     </SafeAreaView>
+  );
+}
+
+function SettleBtn({ label, color, onPress, disabled, loading }) {
+  return (
+    <TouchableOpacity
+      style={[styles.settleBtn, { borderColor: color }]}
+      onPress={onPress}
+      disabled={disabled}
+    >
+      <Text style={[styles.settleBtnText, { color }]}>
+        {loading ? '...' : label}
+      </Text>
+    </TouchableOpacity>
   );
 }
 
@@ -369,6 +445,56 @@ const styles = StyleSheet.create({
   },
   amountPositive: { color: C.success },
   amountNegative: { color: C.error },
+
+  betCard: {
+    backgroundColor: C.surface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 12,
+    marginBottom: 8,
+    gap: 8,
+  },
+  betHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  betLeague: {
+    color: C.accent,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0, 245, 160, 0.1)',
+  },
+  betStake: {
+    color: C.textPrimary,
+    fontSize: 13,
+    fontFamily: 'monospace',
+    fontWeight: '700',
+  },
+  betMatchup: {
+    color: C.textPrimary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  betVs: { color: C.textMuted, fontWeight: '400' },
+  settleRow: { flexDirection: 'row', gap: 6, marginTop: 4 },
+  settleBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  settleBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
 
   modalBackdrop: {
     flex: 1,
