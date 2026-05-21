@@ -2,16 +2,21 @@
 
 Run dev server:
     cd backend && source venv/bin/activate
-    uvicorn api.app:app --reload --port 8000
+    ./dev.sh                              # con logging DEBUG
+    # o manualmente:
+    LOG_LEVEL=DEBUG uvicorn api.app:app --reload --port 8000 --log-level debug
 
 Then visit http://localhost:8000/docs for the interactive Swagger UI.
 """
+
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.errors import register_exception_handlers
 from api.routes import admin, bankroll, fixtures, health, leagues, predictions, teams
+from core.logging_config import setup_logging
 
 
 # Frontend Vite dev server typically runs on these origins.
@@ -32,6 +37,9 @@ LAN_ORIGIN_REGEX = (
 
 
 def create_app() -> FastAPI:
+    setup_logging()
+    logger = logging.getLogger("api.app")
+
     app = FastAPI(
         title="Rinnegan Bets API",
         version="0.1.0",
@@ -60,6 +68,7 @@ def create_app() -> FastAPI:
     app.include_router(bankroll.router)
     app.include_router(admin.router)
 
+    logger.info("Rinnegan Bets API ready (%d routes)", len(app.routes))
     return app
 
 
