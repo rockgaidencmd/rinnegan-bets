@@ -1,9 +1,8 @@
 """League + match listing schemas."""
 
-from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict
 
+from api.schemas._types import UtcDatetime
 from core.leagues import LEAGUES
 
 
@@ -31,7 +30,7 @@ class MatchSummary(BaseModel):
 
     id: int
     league: str
-    match_date: datetime
+    match_date: UtcDatetime
     home_team_id: int
     home_team_name: str
     away_team_id: int
@@ -45,4 +44,6 @@ class MatchSummary(BaseModel):
 
 class MatchListResponse(BaseModel):
     matches: list[MatchSummary]
-    total: int
+    total: int           # rows actually returned in this page
+    total_available: int  # total matching the filter across the whole DB
+    offset: int          # offset of the first row returned

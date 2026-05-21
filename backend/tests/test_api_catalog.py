@@ -195,3 +195,19 @@ class TestMatchList:
         _seed_catalog(db)
         resp = client.get("/api/matches?limit=1")
         assert resp.json()["total"] == 1
+
+    def test_pagination_offset_returns_next_page(self, client, db):
+        """offset=N skips first N rows; total_available stays constant."""
+        _seed_catalog(db)  # 2 matches
+        page1 = client.get("/api/matches?limit=1&offset=0").json()
+        page2 = client.get("/api/matches?limit=1&offset=1").json()
+        assert page1["total"] == 1 and page2["total"] == 1
+        assert page1["total_available"] == 2 and page2["total_available"] == 2
+        assert page1["offset"] == 0 and page2["offset"] == 1
+        assert page1["matches"][0]["id"] != page2["matches"][0]["id"]
+
+    def test_pagination_offset_beyond_data_returns_empty_but_keeps_total(self, client, db):
+        _seed_catalog(db)
+        resp = client.get("/api/matches?offset=999").json()
+        assert resp["total"] == 0
+        assert resp["total_available"] == 2

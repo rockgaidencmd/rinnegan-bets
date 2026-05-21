@@ -1,8 +1,8 @@
 """Schema for upcoming match listings."""
 
-from datetime import datetime
-
 from pydantic import BaseModel
+
+from api.schemas._types import UtcDatetime
 
 
 class FixtureSummary(BaseModel):
@@ -14,7 +14,7 @@ class FixtureSummary(BaseModel):
     """
 
     league: str
-    match_date: datetime
+    match_date: UtcDatetime
     home_team_id: int | None = None
     home_team_name: str
     away_team_id: int | None = None

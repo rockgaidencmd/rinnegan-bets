@@ -1,9 +1,10 @@
 """Bankroll schemas — Request/Response DTOs."""
 
-from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from api.schemas._types import UtcDatetime
 
 
 # --- Requests ---
@@ -42,7 +43,7 @@ class SnapshotResponse(BaseModel):
     change_amount: float
     reason: str
     related_bet_id: int | None = None
-    created_at: datetime
+    created_at: UtcDatetime
 
 
 class BetResponse(BaseModel):
@@ -52,10 +53,10 @@ class BetResponse(BaseModel):
     prediction_id: int
     quota_used: float
     stake_amount: float
-    placed_at: datetime
+    placed_at: UtcDatetime
     outcome: str
     payout_amount: float | None = None
-    settled_at: datetime | None = None
+    settled_at: UtcDatetime | None = None
 
 
 class SettleBetResponse(BaseModel):
@@ -64,8 +65,8 @@ class SettleBetResponse(BaseModel):
 
 
 class RoiResponse(BaseModel):
-    period_start: datetime | None = None
-    period_end: datetime | None = None
+    period_start: UtcDatetime | None = None
+    period_end: UtcDatetime | None = None
     bets_settled: int
     bets_won: int
     bets_lost: int
@@ -84,7 +85,7 @@ class HistoryItemResponse(BaseModel):
     change_amount: float
     reason: str
     related_bet_id: int | None = None
-    created_at: datetime
+    created_at: UtcDatetime
 
 
 class HistoryResponse(BaseModel):

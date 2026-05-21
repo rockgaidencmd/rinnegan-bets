@@ -1,7 +1,7 @@
 """League catalog + match listing endpoints."""
 
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 
 from api.deps import DbSession
 from api.schemas.leagues import (
@@ -62,20 +62,34 @@ def list_matches(
     league: str | None = Query(None, description="Filter by league code"),
     team_id: int | None = Query(None, description="Filter by team participation"),
     limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0, description="Skip this many rows (pagination)"),
 ) -> MatchListResponse:
-    """List recent finished matches, optionally filtered by league or team."""
-    query = (
-        select(Match)
-        .where(Match.home_goals.is_not(None))
-        .order_by(Match.match_date.desc())
-    )
+    """List recent finished matches with offset/limit pagination.
+
+    Returns both `total` (rows in this page) and `total_available` (the
+    full count matching the filter), so the frontend can show "X of Y"
+    and know when to disable the "Cargar más" button.
+    """
+    conditions = [Match.home_goals.is_not(None)]
     if league:
-        query = query.where(Match.league == league)
+        conditions.append(Match.league == league)
     if team_id:
-        query = query.where(
+        conditions.append(
             or_(Match.home_team_id == team_id, Match.away_team_id == team_id)
         )
-    matches = db.execute(query.limit(limit)).scalars().all()
+    where_clause = and_(*conditions)
+
+    total_available = db.execute(
+        select(func.count()).select_from(Match).where(where_clause)
+    ).scalar_one()
+
+    matches = db.execute(
+        select(Match)
+        .where(where_clause)
+        .order_by(Match.match_date.desc(), Match.id.desc())
+        .offset(offset)
+        .limit(limit)
+    ).scalars().all()
 
     # Pre-fetch team names in one query
     team_ids = {m.home_team_id for m in matches} | {m.away_team_id for m in matches}
@@ -102,4 +116,9 @@ def list_matches(
         )
         for m in matches
     ]
-    return MatchListResponse(matches=results, total=len(results))
+    return MatchListResponse(
+        matches=results,
+        total=len(results),
+        total_available=total_available,
+        offset=offset,
+    )

@@ -396,6 +396,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Barlow Condensed
 .match-score-big { font-size: 1.1rem; font-weight: 800; padding: 0 14px; }
 .match-xg-row { font-size: 0.7rem; color: var(--muted); text-align: center; margin-top: 6px; }
 
+.load-more-btn { margin-top: 14px; }
+
 /* HISTORY VIEW */
 .history-list { display: flex; flex-direction: column; gap: 4px; }
 .history-row { display: grid; grid-template-columns: 32px 1fr auto; gap: 12px; align-items: center; padding: 12px 14px; background: var(--s1); border: 1px solid var(--border); border-radius: 8px; }
