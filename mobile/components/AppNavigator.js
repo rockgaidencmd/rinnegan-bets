@@ -8,6 +8,7 @@ import { RinneganColors } from '../constants/Colors';
 import PartidosScreen from '../screens/PartidosScreen';
 import PrediccionScreen from '../screens/PrediccionScreen';
 import BankrollScreen from '../screens/BankrollScreen';
+import LigasScreen from '../screens/LigasScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
@@ -27,6 +28,7 @@ const NavTheme = {
 
 const ICON_BY_ROUTE = {
   Partidos: ['football', 'football-outline'],
+  Ligas: ['trophy', 'trophy-outline'],
   Predicción: ['analytics', 'analytics-outline'],
   Bankroll: ['wallet', 'wallet-outline'],
   Ajustes: ['settings', 'settings-outline'],
@@ -70,6 +72,7 @@ export default function AppNavigator() {
         })}
       >
         <Tab.Screen name="Partidos" component={PartidosScreen} />
+        <Tab.Screen name="Ligas" component={LigasScreen} />
         <Tab.Screen name="Predicción" component={PrediccionScreen} />
         <Tab.Screen name="Bankroll" component={BankrollScreen} />
         <Tab.Screen name="Ajustes" component={SettingsScreen} />

@@ -76,6 +76,9 @@ export const api = {
   searchTeams: (q, limit = 10) =>
     request(`/api/teams/search?q=${encodeURIComponent(q)}&limit=${limit}`),
 
+  getTeamsByLeague: (code) =>
+    request(`/api/leagues/${encodeURIComponent(code)}/teams`),
+
   predict: (payload) =>
     request('/api/predictions', {
       method: 'POST',

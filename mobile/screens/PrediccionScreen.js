@@ -75,18 +75,23 @@ export default function PrediccionScreen() {
             selected={home}
             onSelect={(t) => {
               setHome(t);
-              // Si el visitante ya elegido no es de la misma liga, lo limpiamos.
               if (away && away.league !== t.league) setAway(null);
             }}
             onClear={() => setHome(null)}
+            allowedLeague={away?.league}
+            excludeId={away?.id}
           />
 
           <TeamPicker
             label="Equipo visitante"
             selected={away}
-            onSelect={setAway}
+            onSelect={(t) => {
+              setAway(t);
+              if (home && home.league !== t.league) setHome(null);
+            }}
             onClear={() => setAway(null)}
             allowedLeague={home?.league}
+            excludeId={home?.id}
           />
 
           <View style={styles.row}>
@@ -143,7 +148,14 @@ export default function PrediccionScreen() {
 
 // --- TeamPicker: typeahead search ---
 
-function TeamPicker({ label, selected, onSelect, onClear, allowedLeague }) {
+function TeamPicker({
+  label,
+  selected,
+  onSelect,
+  onClear,
+  allowedLeague,
+  excludeId,
+}) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -157,12 +169,13 @@ function TeamPicker({ label, selected, onSelect, onClear, allowedLeague }) {
       setSearching(true);
       try {
         const data = await api.searchTeams(query.trim());
-        const all = data.results || [];
-        // Si ya hay local elegido, solo mostramos equipos de su misma liga —
-        // así evitamos cruces que el backend rechazaría con 404.
-        const filtered = allowedLeague
-          ? all.filter((t) => t.league === allowedLeague)
-          : all;
+        const filtered = (data.results || []).filter((t) => {
+          // Bloqueamos elegir el mismo equipo en ambos lados,
+          // y forzamos misma liga cuando el otro picker ya tiene equipo.
+          if (excludeId && t.id === excludeId) return false;
+          if (allowedLeague && t.league !== allowedLeague) return false;
+          return true;
+        });
         setResults(filtered);
       } catch {
         setResults([]);
@@ -171,7 +184,7 @@ function TeamPicker({ label, selected, onSelect, onClear, allowedLeague }) {
       }
     }, DEBOUNCE_MS);
     return () => clearTimeout(id);
-  }, [query, selected, allowedLeague]);
+  }, [query, selected, allowedLeague, excludeId]);
 
   if (selected) {
     return (
