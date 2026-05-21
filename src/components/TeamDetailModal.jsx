@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../utils/api.js';
+import { formatDateShort } from '../utils/dates.js';
 
 
 export function TeamDetailModal({ team, onClose }) {
@@ -112,9 +113,7 @@ export function TeamDetailModal({ team, onClose }) {
                   const resultLetter = won ? 'G' : drew ? 'E' : 'P';
                   const teamXg = isHome ? m.home_xg : m.away_xg;
                   const oppXg = isHome ? m.away_xg : m.home_xg;
-                  const dateStr = new Date(m.match_date).toLocaleDateString('es-EC', {
-                    day: '2-digit', month: 'short',
-                  });
+                  const dateStr = formatDateShort(m.match_date);
                   return (
                     <div key={m.id} className="match-row">
                       <span className={`match-result ${resultClass}`}>{resultLetter}</span>

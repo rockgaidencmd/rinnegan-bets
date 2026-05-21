@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../utils/api.js';
+import { formatDateShort } from '../utils/dates.js';
 
 
 export function MatchesView() {
@@ -87,7 +88,7 @@ export function MatchesView() {
         {matches.map((m) => (
           <div key={m.id} className="match-card">
             <div className="match-date mono">
-              {new Date(m.match_date).toLocaleDateString('es-EC', { day: '2-digit', month: 'short' })}
+              {formatDateShort(m.match_date)}
               <span className="match-league-chip">{m.league}</span>
             </div>
             <div className="match-teams">

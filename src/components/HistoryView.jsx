@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../utils/api.js';
+import { formatDateTime } from '../utils/dates.js';
 
 
 const REASON_LABEL = {
@@ -96,9 +97,7 @@ export function HistoryView() {
                 <div className="history-info">
                   <div className="history-reason">{meta.label}</div>
                   <div className="history-date mono">
-                    {new Date(h.created_at).toLocaleString('es-EC', {
-                      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-                    })}
+                    {formatDateTime(h.created_at)}
                   </div>
                 </div>
                 <div className="history-amount">

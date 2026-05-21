@@ -15,10 +15,24 @@ const VIEW_TITLES = {
   history: 'Historial',
 };
 
+const SIDEBAR_COLLAPSED_KEY = 'rinnegan:sidebar:collapsed';
+
 
 export default function App() {
   const [activeView, setActiveView] = useState('predict');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    // Read once on mount — keeps the user's last choice across reloads
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
+  });
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
+      return next;
+    });
+  };
 
   let view;
   if (activeView === 'predict') view = <SmartPredict />;
@@ -27,12 +41,14 @@ export default function App() {
   else if (activeView === 'history') view = <HistoryView />;
 
   return (
-    <div className="layout">
+    <div className={`layout ${sidebarCollapsed ? 'layout-collapsed' : ''}`}>
       <Sidebar
         activeView={activeView}
         onSelect={setActiveView}
         mobileOpen={mobileMenuOpen}
         onMobileClose={() => setMobileMenuOpen(false)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={toggleSidebar}
       />
       <main className="main">
         <div className="main-topbar">

@@ -1,6 +1,9 @@
 /**
- * Sidebar — fixed left nav for switching between views.
- * Controlled: parent owns the activeView state.
+ * Sidebar — left nav for switching between views.
+ *
+ * Desktop: collapsible (icon-only) via the toggle. State persists in
+ * localStorage so it stays collapsed across reloads.
+ * Mobile: drawer that slides in from the left.
  */
 
 const NAV_ITEMS = [
@@ -11,13 +14,27 @@ const NAV_ITEMS = [
 ];
 
 
-export function Sidebar({ activeView, onSelect, mobileOpen, onMobileClose }) {
+export function Sidebar({
+  activeView, onSelect, mobileOpen, onMobileClose,
+  collapsed, onToggleCollapsed,
+}) {
   return (
     <>
       {mobileOpen && <div className="sidebar-backdrop" onClick={onMobileClose} />}
-      <aside className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`}>
-        <div className="sidebar-logo">
-          RINNEG<em>AN</em>
+      <aside className={`sidebar ${mobileOpen ? 'sidebar-open' : ''} ${collapsed ? 'sidebar-collapsed' : ''}`}>
+        <div className="sidebar-header">
+          <div className="sidebar-logo">
+            RINNEG<em>AN</em>
+          </div>
+          <button
+            className="sidebar-collapse-btn"
+            onClick={onToggleCollapsed}
+            type="button"
+            aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+            title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+          >
+            {collapsed ? '›' : '‹'}
+          </button>
         </div>
         <nav className="sidebar-nav">
           {NAV_ITEMS.map((item) => (
@@ -29,15 +46,13 @@ export function Sidebar({ activeView, onSelect, mobileOpen, onMobileClose }) {
                 onMobileClose?.();
               }}
               type="button"
+              title={collapsed ? item.label : undefined}
             >
               <span className="sidebar-icon">{item.icon}</span>
               <span className="sidebar-label">{item.label}</span>
             </button>
           ))}
         </nav>
-        <div className="sidebar-footer">
-          <div className="sidebar-version">v2 · 3 fases</div>
-        </div>
       </aside>
     </>
   );
