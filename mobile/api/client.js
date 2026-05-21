@@ -1,115 +1,64 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
+// Standalone client. Same `api.*` shape the screens already consume,
+// but every method now reads/writes the local SQLite (mobile/database/*)
+// and runs the prediction in-process (mobile/core/predict). No HTTP.
+//
+// All methods stay async so the screens (which `await` everything)
+// don't need any change.
 
-const STORAGE_KEY = 'rinnegan.apiUrl';
+import { getDb } from '../database';
+import { listLeagues } from '../database/leagues';
+import { searchTeams, getTeamsByLeague, getTeamStats } from '../database/teams';
+import { listMatches } from '../database/matches';
+import { listFixtures } from '../database/fixtures';
+import {
+  getBalance,
+  getHistory as getBankrollHistory,
+  deposit,
+  withdraw,
+} from '../database/bankroll';
+import { placeBet, listPendingBets, settleBet } from '../database/bets';
+import { savePrediction } from '../database/predictions';
+import { predict as runPredict } from '../core/predict';
 
-const DEFAULT_URL =
-  Constants.expoConfig?.extra?.apiUrl ||
-  Constants.manifest?.extra?.apiUrl ||
-  'http://localhost:8000';
-
-// Module-level cache so we don't hit AsyncStorage on every request.
-let cachedUrl = null;
-const subscribers = new Set();
-
-export async function getApiBaseUrl() {
-  if (cachedUrl !== null) return cachedUrl;
-  const stored = await AsyncStorage.getItem(STORAGE_KEY);
-  cachedUrl = stored || DEFAULT_URL;
-  return cachedUrl;
-}
-
-export async function setApiBaseUrl(url) {
-  const clean = (url || '').trim().replace(/\/+$/, '');
-  if (!clean) {
-    await AsyncStorage.removeItem(STORAGE_KEY);
-    cachedUrl = DEFAULT_URL;
-  } else {
-    await AsyncStorage.setItem(STORAGE_KEY, clean);
-    cachedUrl = clean;
-  }
-  subscribers.forEach((fn) => fn(cachedUrl));
-  return cachedUrl;
-}
-
-export function subscribeApiBaseUrl(fn) {
-  subscribers.add(fn);
-  return () => subscribers.delete(fn);
-}
-
-export function getDefaultApiUrl() {
-  return DEFAULT_URL;
-}
-
-async function request(path, options = {}) {
-  const base = await getApiBaseUrl();
-  const res = await fetch(`${base}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  if (!res.ok) {
-    // El backend devuelve { title, detail, status } via register_exception_handlers.
-    // Preferimos `detail` legible; caemos al statusText si la respuesta no es JSON.
-    let message = res.statusText || `HTTP ${res.status}`;
-    try {
-      const json = await res.json();
-      message = json.detail || json.message || json.title || message;
-    } catch {
-      // not JSON — mantenemos statusText
-    }
-    throw new Error(message);
-  }
-  return res.json();
+// Small helper: run a sync DAO in a Promise so the screens'
+// `await api.foo()` continues to work.
+function defer(fn) {
+  return (...args) =>
+    new Promise((resolve, reject) => {
+      try {
+        resolve(fn(getDb(), ...args));
+      } catch (e) {
+        reject(e);
+      }
+    });
 }
 
 export const api = {
-  listLeagues: () => request('/api/leagues'),
+  listLeagues: defer(listLeagues),
 
-  listMatches: ({ league, team_id, limit = 25, offset = 0 } = {}) => {
-    const params = new URLSearchParams();
-    if (league) params.set('league', league);
-    if (team_id) params.set('team_id', team_id);
-    params.set('limit', limit);
-    params.set('offset', offset);
-    return request(`/api/matches?${params.toString()}`);
-  },
+  listMatches: defer((db, params = {}) => listMatches(db, params)),
 
-  searchTeams: (q, limit = 10) =>
-    request(`/api/teams/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+  searchTeams: defer((db, q, limit) => searchTeams(db, q, limit)),
 
-  getTeamsByLeague: (code) =>
-    request(`/api/leagues/${encodeURIComponent(code)}/teams`),
+  getTeamsByLeague: defer((db, code) => getTeamsByLeague(db, code)),
 
-  getTeamStats: (teamId) => request(`/api/teams/${teamId}/stats`),
+  getTeamStats: defer((db, teamId) => getTeamStats(db, teamId)),
 
-  listFixtures: ({ league, days = 7, limit = 20 } = {}) => {
-    const params = new URLSearchParams();
-    if (league) params.set('league', league);
-    params.set('days', days);
-    params.set('limit', limit);
-    return request(`/api/fixtures?${params.toString()}`);
-  },
+  listFixtures: defer((db, params = {}) => listFixtures(db, params)),
 
-  predict: (payload) =>
-    request('/api/predictions', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
+  predict: defer((db, payload) => runPredict(db, payload)),
 
-  getBalance: () => request('/api/bankroll'),
+  getBalance: defer(getBalance),
 
-  getBankrollHistory: (limit = 20) =>
-    request(`/api/bankroll/history?limit=${limit}`),
+  getBankrollHistory: defer((db, limit) => getBankrollHistory(db, limit)),
 
-  deposit: (amount) =>
-    request('/api/bankroll/deposit', {
-      method: 'POST',
-      body: JSON.stringify({ amount }),
-    }),
+  deposit: defer((db, amount) => deposit(db, amount)),
 
-  withdraw: (amount) =>
-    request('/api/bankroll/withdraw', {
-      method: 'POST',
-      body: JSON.stringify({ amount }),
-    }),
+  withdraw: defer((db, amount) => withdraw(db, amount)),
+
+  // New endpoints exposed for the bet flow (no HTTP equivalents needed).
+  savePrediction: defer((db, p) => savePrediction(db, p)),
+  placeBet: defer((db, params) => placeBet(db, params)),
+  listPendingBets: defer(listPendingBets),
+  settleBet: defer((db, betId, outcome) => settleBet(db, betId, outcome)),
 };
