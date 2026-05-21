@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useFixtures } from '../hooks/useFixtures.js';
 import { useLeagues } from '../hooks/useLeagues.js';
 import { formatDateTime } from '../utils/dates.js';
+import { TeamDetailModal } from './TeamDetailModal.jsx';
 import { TeamPickerStep } from './TeamPickerStep.jsx';
 import { TeamStatsPreview } from './TeamStatsPreview.jsx';
 
@@ -17,6 +18,7 @@ import { TeamStatsPreview } from './TeamStatsPreview.jsx';
 export function FixturePicker({ home, away, onHomeChange, onAwayChange }) {
   const [league, setLeague] = useState('');
   const [showCustom, setShowCustom] = useState(false);
+  const [teamModalFor, setTeamModalFor] = useState(null);  // 'home' | 'away' | null
   const { leagues, loading: leaguesLoading } = useLeagues();
   const { fixtures, loading, error } = useFixtures(league);
 
@@ -44,32 +46,61 @@ export function FixturePicker({ home, away, onHomeChange, onAwayChange }) {
 
   // ───────────────────────── SELECTED MODE ─────────────────────────
   if (hasSelection) {
+    const modalTeam = teamModalFor === 'home' ? home : teamModalFor === 'away' ? away : null;
     return (
-      <div className="card">
-        <div className="card-hdr">
-          <div className="card-title">1. Partido</div>
-          <button className="btn-link" onClick={clearSelection} type="button">
-            cambiar partido
-          </button>
+      <>
+        <div className="card">
+          <div className="card-hdr">
+            <div className="card-title">1. Partido</div>
+            <button className="btn-link" onClick={clearSelection} type="button">
+              cambiar partido
+            </button>
+          </div>
+
+          <div className="fixture-selected">
+            <span className="fixture-selected-team">{home.name}</span>
+            <span className="fixture-selected-vs">vs</span>
+            <span className="fixture-selected-team">{away.name}</span>
+          </div>
+
+          <div className="fixture-selected-stats">
+            <div className="fixture-selected-stats-col">
+              <div className="fixture-selected-stats-header">
+                <span className="fixture-selected-stats-label">LOCAL</span>
+                <button
+                  className="btn-link"
+                  onClick={() => setTeamModalFor('home')}
+                  type="button"
+                >
+                  ver partidos →
+                </button>
+              </div>
+              <TeamStatsPreview teamId={home.id} />
+            </div>
+            <div className="fixture-selected-stats-divider" />
+            <div className="fixture-selected-stats-col">
+              <div className="fixture-selected-stats-header">
+                <span className="fixture-selected-stats-label">VISITANTE</span>
+                <button
+                  className="btn-link"
+                  onClick={() => setTeamModalFor('away')}
+                  type="button"
+                >
+                  ver partidos →
+                </button>
+              </div>
+              <TeamStatsPreview teamId={away.id} />
+            </div>
+          </div>
         </div>
 
-        <div className="fixture-selected">
-          <span className="fixture-selected-team">{home.name}</span>
-          <span className="fixture-selected-vs">vs</span>
-          <span className="fixture-selected-team">{away.name}</span>
-        </div>
-
-        <div className="fixture-selected-stats">
-          <div className="fixture-selected-stats-col">
-            <div className="fixture-selected-stats-label">LOCAL</div>
-            <TeamStatsPreview teamId={home.id} />
-          </div>
-          <div className="fixture-selected-stats-col">
-            <div className="fixture-selected-stats-label">VISITANTE</div>
-            <TeamStatsPreview teamId={away.id} />
-          </div>
-        </div>
-      </div>
+        {modalTeam && (
+          <TeamDetailModal
+            team={modalTeam}
+            onClose={() => setTeamModalFor(null)}
+          />
+        )}
+      </>
     );
   }
 
