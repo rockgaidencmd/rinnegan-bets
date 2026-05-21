@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/client';
+import TeamsComparison from '../components/TeamsComparison';
 import { RinneganColors as C } from '../constants/Colors';
 
 const DEBOUNCE_MS = 300;
@@ -151,6 +152,10 @@ export default function PrediccionScreen() {
                 allowedLeague={home?.league}
                 excludeId={home?.id}
               />
+
+              {home && away && (
+                <TeamsComparison home={home} away={away} />
+              )}
 
               <View style={styles.row}>
                 <View style={styles.col}>
