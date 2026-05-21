@@ -68,6 +68,44 @@ class SofaScoreFetcher(BaseFetcher):
             ttl=timedelta(days=7),
         )
 
+    def get_tournament_events(
+        self, tournament_id: int, season_id: int, page: int = 0,
+    ) -> dict:
+        """All matches in a tournament season, paginated (~30 per page).
+
+        Use this for round-robin leagues (CL group + knockout, league phase).
+        For cup tournaments still in early rounds, use get_tournament_round_events.
+
+        Cache: 6h.
+        """
+        url = (
+            f"{BASE_URL}/unique-tournament/{tournament_id}"
+            f"/season/{season_id}/events/last/{page}"
+        )
+        return self._fetch_json(
+            url,
+            cache_key=self._cache_key("tournament_events", tournament_id, season_id, page),
+            ttl=timedelta(hours=6),
+        )
+
+    def get_tournament_round_events(
+        self, tournament_id: int, season_id: int, round_num: int,
+    ) -> dict:
+        """Matches in a specific round of a tournament season.
+
+        Cup tournaments in early rounds (e.g. Copa Libertadores group stage)
+        expose events only by round, not by 'last/N' paging.
+        """
+        url = (
+            f"{BASE_URL}/unique-tournament/{tournament_id}"
+            f"/season/{season_id}/events/round/{round_num}"
+        )
+        return self._fetch_json(
+            url,
+            cache_key=self._cache_key("tournament_round", tournament_id, season_id, round_num),
+            ttl=timedelta(hours=6),
+        )
+
     def get_team_performance(self, team_id: int) -> dict:
         """Get team's last 10 ACTUAL recent matches (current form).
 
