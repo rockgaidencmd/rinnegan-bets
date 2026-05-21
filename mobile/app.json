@@ -15,11 +15,14 @@
     },
     "android": {
       "edgeToEdgeEnabled": true,
-      "package": "com.ajcr9496.rinneganbets"
+      "package": "com.ajcr9496.rinneganbets",
+      "versionCode": 1
     },
     "web": {},
     "extra": {
-      "apiUrl": "http://192.168.1.100:8000"
+      "eas": {
+        "projectId": ""
+      }
     },
     "plugins": [
       "expo-sqlite",
