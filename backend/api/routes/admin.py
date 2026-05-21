@@ -84,23 +84,24 @@ def refresh_data(
 
 
 def _run_seed_matches() -> None:
-    """Run seed_matches.py as a subprocess so its DB session is independent
-    of the HTTP request's session (which is closed when the request returns).
+    """Run the unified seed script (--all leagues) as a subprocess so its
+    DB session is independent of the HTTP request's session (which closes
+    when the response is sent).
     """
     script = BACKEND_DIR / "scripts" / "seed_matches.py"
     try:
         result = subprocess.run(
-            [sys.executable, str(script), "--per-team", "7"],
+            [sys.executable, str(script), "--all"],
             cwd=BACKEND_DIR,
             capture_output=True,
             text=True,
-            timeout=20 * 60,  # 20 min ceiling
+            timeout=30 * 60,  # 30 min ceiling — full re-seed of every league
         )
         if result.returncode != 0:
             logger.error("Seed failed (exit %s): %s", result.returncode, result.stderr[-500:])
         else:
             logger.info("Seed finished successfully")
     except subprocess.TimeoutExpired:
-        logger.error("Seed timed out after 20 minutes")
+        logger.error("Seed timed out after 30 minutes")
     except Exception as e:
         logger.exception("Seed subprocess crashed: %s", e)
