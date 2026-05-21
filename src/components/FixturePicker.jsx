@@ -3,13 +3,16 @@ import { useFixtures } from '../hooks/useFixtures.js';
 import { useLeagues } from '../hooks/useLeagues.js';
 import { formatDateTime } from '../utils/dates.js';
 import { TeamPickerStep } from './TeamPickerStep.jsx';
+import { TeamStatsPreview } from './TeamStatsPreview.jsx';
 
 
 /**
  * FixturePicker — primary way to pick a match: choose league → click upcoming fixture.
  *
- * Falls back to TeamPickerStep autocomplete in a collapsed section for
- * cases where the user wants to predict a hypothetical / fantasy matchup.
+ * Two clear modes (mutually exclusive — no "delete team while another is selected" confusion):
+ *   - SELECTED: shows the matchup + each team's stats. One "limpiar" button to start over.
+ *   - PICKING: shows league chips + upcoming fixtures + a collapsible "búsqueda libre"
+ *              fallback for hypothetical matchups.
  */
 export function FixturePicker({ home, away, onHomeChange, onAwayChange }) {
   const [league, setLeague] = useState('');
@@ -17,9 +20,7 @@ export function FixturePicker({ home, away, onHomeChange, onAwayChange }) {
   const { leagues, loading: leaguesLoading } = useLeagues();
   const { fixtures, loading, error } = useFixtures(league);
 
-  // If the parent already set home+away (from a previous flow), show the
-  // custom picker so the user can see/clear them.
-  const hasSelection = home || away;
+  const hasSelection = !!(home && away);
 
   const handleFixtureClick = (fixture) => {
     if (!fixture.home_team_id || !fixture.away_team_id) return;
@@ -35,94 +36,113 @@ export function FixturePicker({ home, away, onHomeChange, onAwayChange }) {
     });
   };
 
+  const clearSelection = () => {
+    onHomeChange(null);
+    onAwayChange(null);
+    setShowCustom(false);
+  };
+
+  // ───────────────────────── SELECTED MODE ─────────────────────────
+  if (hasSelection) {
+    return (
+      <div className="card">
+        <div className="card-hdr">
+          <div className="card-title">1. Partido</div>
+          <button className="btn-link" onClick={clearSelection} type="button">
+            cambiar partido
+          </button>
+        </div>
+
+        <div className="fixture-selected">
+          <span className="fixture-selected-team">{home.name}</span>
+          <span className="fixture-selected-vs">vs</span>
+          <span className="fixture-selected-team">{away.name}</span>
+        </div>
+
+        <div className="fixture-selected-stats">
+          <div className="fixture-selected-stats-col">
+            <div className="fixture-selected-stats-label">LOCAL</div>
+            <TeamStatsPreview teamId={home.id} />
+          </div>
+          <div className="fixture-selected-stats-col">
+            <div className="fixture-selected-stats-label">VISITANTE</div>
+            <TeamStatsPreview teamId={away.id} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ───────────────────────── PICKING MODE ──────────────────────────
   return (
     <>
       <div className="card">
         <div className="card-hdr">
           <div className="card-title">1. Partido</div>
-          {hasSelection && (
-            <button
-              className="btn-link"
-              onClick={() => { onHomeChange(null); onAwayChange(null); }}
-              type="button"
-            >
-              limpiar
-            </button>
-          )}
         </div>
 
-        {hasSelection ? (
-          <div className="fixture-selected">
-            <span className="fixture-selected-team">{home?.name || '—'}</span>
-            <span className="fixture-selected-vs">vs</span>
-            <span className="fixture-selected-team">{away?.name || '—'}</span>
-          </div>
+        <label className="lbl">Liga</label>
+        {leaguesLoading ? (
+          <div className="fixtures-status">Cargando ligas...</div>
         ) : (
-          <>
-            <label className="lbl">Liga</label>
-            {leaguesLoading ? (
-              <div className="fixtures-status">Cargando ligas...</div>
-            ) : (
-              <div className="league-chips">
-                {leagues.map((l) => (
-                  <button
-                    key={l.code}
-                    className={`league-chip ${league === l.code ? 'league-chip-active' : ''}`}
-                    onClick={() => setLeague(l.code)}
-                    type="button"
-                  >
-                    <span className="league-chip-code">{l.code}</span>
-                    <span className="league-chip-label">{l.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+          <div className="league-chips">
+            {leagues.map((l) => (
+              <button
+                key={l.code}
+                className={`league-chip ${league === l.code ? 'league-chip-active' : ''}`}
+                onClick={() => setLeague(l.code)}
+                type="button"
+              >
+                <span className="league-chip-code">{l.code}</span>
+                <span className="league-chip-label">{l.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
-            {league && (
-              <div className="fixtures-section">
-                <div className="fixtures-section-title">
-                  Próximos partidos · 7 días
-                </div>
-                {loading && <div className="fixtures-status">Cargando...</div>}
-                {error && <div className="fixtures-status fixtures-error">❌ {error}</div>}
-                {!loading && !error && fixtures.length === 0 && (
-                  <div className="fixtures-status fixtures-empty">
-                    Sin partidos próximos en los siguientes 7 días.
-                  </div>
-                )}
-                {!loading && fixtures.length > 0 && (
-                  <div className="fixtures-list">
-                    {fixtures.map((f, i) => {
-                      const playable = f.home_team_id && f.away_team_id;
-                      return (
-                        <button
-                          key={`${f.home_team_name}-${f.away_team_name}-${i}`}
-                          className={`fixture-card ${playable ? '' : 'fixture-card-disabled'}`}
-                          onClick={() => handleFixtureClick(f)}
-                          disabled={!playable}
-                          type="button"
-                          title={playable ? 'Predecir este partido' : 'Equipo no disponible en la BD'}
-                        >
-                          <div className="fixture-card-date mono">
-                            {formatDateTime(f.match_date)}
-                          </div>
-                          <div className="fixture-card-teams">
-                            <span className="fixture-card-home">{f.home_team_name}</span>
-                            <span className="fixture-card-vs">vs</span>
-                            <span className="fixture-card-away">{f.away_team_name}</span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+        {league && (
+          <div className="fixtures-section">
+            <div className="fixtures-section-title">
+              Próximos partidos · 7 días
+            </div>
+            {loading && <div className="fixtures-status">Cargando...</div>}
+            {error && <div className="fixtures-status fixtures-error">❌ {error}</div>}
+            {!loading && !error && fixtures.length === 0 && (
+              <div className="fixtures-status fixtures-empty">
+                Sin partidos próximos en los siguientes 7 días.
               </div>
             )}
-          </>
+            {!loading && fixtures.length > 0 && (
+              <div className="fixtures-list">
+                {fixtures.map((f, i) => {
+                  const playable = f.home_team_id && f.away_team_id;
+                  return (
+                    <button
+                      key={`${f.home_team_name}-${f.away_team_name}-${i}`}
+                      className={`fixture-card ${playable ? '' : 'fixture-card-disabled'}`}
+                      onClick={() => handleFixtureClick(f)}
+                      disabled={!playable}
+                      type="button"
+                      title={playable ? 'Predecir este partido' : 'Equipo no disponible en la BD'}
+                    >
+                      <div className="fixture-card-date mono">
+                        {formatDateTime(f.match_date)}
+                      </div>
+                      <div className="fixture-card-teams">
+                        <span className="fixture-card-home">{f.home_team_name}</span>
+                        <span className="fixture-card-vs">vs</span>
+                        <span className="fixture-card-away">{f.away_team_name}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
-      {/* Fallback: free search */}
+      {/* Fallback: free search — only relevant before any team is picked */}
       <div className="card">
         <button
           className="custom-pick-toggle"

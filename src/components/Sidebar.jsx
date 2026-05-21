@@ -27,7 +27,8 @@ export function Sidebar({
       <aside className={`sidebar ${mobileOpen ? 'sidebar-open' : ''} ${collapsed ? 'sidebar-collapsed' : ''}`}>
         <div className="sidebar-header">
           <div className="sidebar-logo">
-            RINNEG<em>AN</em> <span className="sidebar-logo-bets">BETS</span>
+            <span className="sidebar-logo-name">RINNEG<em>AN</em></span>
+            <span className="sidebar-logo-bets">BETS</span>
           </div>
           <button
             className="sidebar-collapse-btn"
