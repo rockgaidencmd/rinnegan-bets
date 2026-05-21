@@ -9,7 +9,10 @@
 // useful for "factory reset" / debugging from the Settings screen.
 
 import * as SQLite from 'expo-sqlite';
-import * as FileSystem from 'expo-file-system';
+// expo-file-system SDK 54 deprecated the top-level functions
+// (getInfoAsync, copyAsync, etc.) in favor of File/Directory classes.
+// We pin to /legacy for now — TODO migrate to the new API.
+import * as FileSystem from 'expo-file-system/legacy';
 import { Asset } from 'expo-asset';
 
 const DB_NAME = 'rinnegan.db';
