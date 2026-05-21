@@ -18,9 +18,17 @@ from api.routes import admin, bankroll, fixtures, health, leagues, predictions, 
 DEV_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    # When tu hermano accesses from his phone on the LAN:
-    "http://192.168.0.0/16",  # placeholder — replace with real LAN IP if needed
 ]
+
+# LAN ranges for the Expo Go mobile app: 192.168.x.x, 10.x.x.x, 172.16-31.x.x.
+LAN_ORIGIN_REGEX = (
+    r"http://("
+    r"localhost|127\.0\.0\.1|"
+    r"192\.168\.\d+\.\d+|"
+    r"10\.\d+\.\d+\.\d+|"
+    r"172\.(1[6-9]|2\d|3[01])\.\d+\.\d+"
+    r"):\d+"
+)
 
 
 def create_app() -> FastAPI:
@@ -36,7 +44,7 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=DEV_ORIGINS,
-        allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+):\d+",
+        allow_origin_regex=LAN_ORIGIN_REGEX,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "DELETE"],
         allow_headers=["Content-Type", "Authorization"],
