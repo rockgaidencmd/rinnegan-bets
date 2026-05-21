@@ -227,6 +227,22 @@ body { background: var(--bg); color: var(--text); font-family: 'Barlow Condensed
 .sidebar-icon { font-size: 1.1rem; width: 22px; text-align: center; flex-shrink: 0; }
 .sidebar-label { letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.78rem; white-space: nowrap; overflow: hidden; }
 .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 99; }
+.sidebar-footer { padding: 10px; border-top: 1px solid var(--border); }
+
+/* REFRESH BUTTON */
+.refresh-control { display: flex; flex-direction: column; gap: 4px; }
+.refresh-btn { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--s2); border: 1px solid var(--border); color: var(--text); border-radius: 7px; cursor: pointer; font-family: 'Barlow Condensed', sans-serif; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; width: 100%; transition: all 0.15s; }
+.refresh-btn:hover:not(:disabled) { border-color: var(--green); color: var(--green); }
+.refresh-btn:disabled { opacity: 0.55; cursor: progress; }
+.refresh-icon { display: inline-block; font-size: 1rem; font-weight: 700; }
+.refresh-icon-spinning { animation: refresh-spin 1.2s linear infinite; }
+@keyframes refresh-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.refresh-label { flex: 1; text-align: left; }
+.refresh-stats { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: var(--muted); padding: 0 4px; }
+.refresh-gained { color: var(--green); font-weight: 600; }
+.refresh-error { color: var(--red); font-size: 0.7rem; padding: 0 4px; }
+.refresh-control-collapsed .refresh-btn { justify-content: center; padding: 9px 0; }
+.refresh-control-collapsed .refresh-label { display: none; }
 
 /* Collapsed state: icon-only, narrow rail */
 .sidebar-collapsed { width: 64px; }
@@ -235,6 +251,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Barlow Condensed
 .sidebar-collapsed .sidebar-label { display: none; }
 .sidebar-collapsed .sidebar-item { justify-content: center; padding: 11px 8px; }
 .sidebar-collapsed .sidebar-item-active { padding-left: 6px; }
+.sidebar-collapsed .sidebar-footer { padding: 6px; }
 
 /* VIEWS HEADER */
 .view-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 18px; }

@@ -1,3 +1,6 @@
+import { RefreshButton } from './RefreshButton.jsx';
+
+
 /**
  * Sidebar — left nav for switching between views.
  *
@@ -53,6 +56,9 @@ export function Sidebar({
             </button>
           ))}
         </nav>
+        <div className="sidebar-footer">
+          <RefreshButton collapsed={collapsed} />
+        </div>
       </aside>
     </>
   );

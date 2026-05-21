@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.errors import register_exception_handlers
-from api.routes import bankroll, fixtures, health, leagues, predictions, teams
+from api.routes import admin, bankroll, fixtures, health, leagues, predictions, teams
 
 
 # Frontend Vite dev server typically runs on these origins.
@@ -50,6 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(fixtures.router)
     app.include_router(predictions.router)
     app.include_router(bankroll.router)
+    app.include_router(admin.router)
 
     return app
 

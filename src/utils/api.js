@@ -106,4 +106,9 @@ export const api = {
 
   getRoi: () => request('/api/bankroll/roi'),
   getHistory: (limit = 20) => request(`/api/bankroll/history?limit=${limit}`),
+
+  // Admin
+  getDataStats: () => request('/api/admin/stats'),
+  refreshData: () =>
+    request('/api/admin/refresh', { method: 'POST', body: JSON.stringify({}) }),
 };
