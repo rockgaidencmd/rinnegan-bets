@@ -121,8 +121,9 @@ export function FixturePicker({ home, away, onHomeChange, onAwayChange }) {
               <button
                 key={l.code}
                 className={`league-chip ${league === l.code ? 'league-chip-active' : ''}`}
-                onClick={() => setLeague(l.code)}
+                onClick={() => setLeague(league === l.code ? '' : l.code)}
                 type="button"
+                title={league === l.code ? 'Cerrar lista de partidos' : `Ver partidos de ${l.name}`}
               >
                 <span className="league-chip-code">{l.code}</span>
                 <span className="league-chip-label">{l.name}</span>

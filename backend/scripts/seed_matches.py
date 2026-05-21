@@ -117,7 +117,15 @@ def _ensure_team_exists(
     skipping the match, we create the team on demand. Idempotent — second
     call with the same (slug, league) hits the UNIQUE constraint and reuses.
     """
-    team = session.query(Team).filter(Team.sofascore_id == sofascore_id).first()
+    # ORDER BY id ASC: deterministic — always the row created FIRST wins.
+    # The API search uses the same rule, so the team_id the user sees in
+    # the autocomplete is the same one matches get inserted under.
+    team = (
+        session.query(Team)
+        .filter(Team.sofascore_id == sofascore_id)
+        .order_by(Team.id.asc())
+        .first()
+    )
     if team:
         return team.id
 
@@ -131,7 +139,12 @@ def _ensure_team_exists(
     session.execute(stmt)
     session.commit()
 
-    team = session.query(Team).filter(Team.sofascore_id == sofascore_id).first()
+    team = (
+        session.query(Team)
+        .filter(Team.sofascore_id == sofascore_id)
+        .order_by(Team.id.asc())
+        .first()
+    )
     if team:
         return team.id
     # The (slug, league) collision case — pick by slug+league instead

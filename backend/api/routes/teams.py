@@ -21,14 +21,39 @@ def search_teams(
 ) -> TeamSearchResponse:
     """Find teams matching a query string. Used for autocomplete on the frontend.
 
-    Resolves common aliases (IDV, ManU, BSC, etc.) before doing the DB lookup.
+    Resolves common aliases (IDV, ManU, BSC, etc.). Deduplicates by
+    sofascore_id so a team appearing in multiple leagues (e.g. Real Madrid
+    in PD + CL) shows up only once — pointing to the row where its
+    matches actually live (lowest id wins for determinism).
     """
-    teams = find_teams_by_name(db, q)[:limit]
+    teams = find_teams_by_name(db, q)
+    deduped = _dedupe_by_sofascore_id(teams)[:limit]
     return TeamSearchResponse(
         query=q,
-        results=[TeamResponse.model_validate(t) for t in teams],
-        count=len(teams),
+        results=[TeamResponse.model_validate(t) for t in deduped],
+        count=len(deduped),
     )
+
+
+def _dedupe_by_sofascore_id(teams):
+    """Keep one row per sofascore_id. Among duplicates, the lowest team.id
+    wins — and that's the same row _ensure_team_exists picks in the seed,
+    so the user-facing team always points to the row holding the matches.
+
+    Teams without a sofascore_id (e.g. football_data-only seeds) are kept
+    as-is (they can't collide).
+    """
+    seen: dict[int, int] = {}  # sofascore_id → min(team.id)
+    kept_without_sofa: list = []
+    for t in sorted(teams, key=lambda x: x.id):
+        if t.sofascore_id is None:
+            kept_without_sofa.append(t)
+            continue
+        if t.sofascore_id not in seen:
+            seen[t.sofascore_id] = t.id
+
+    by_id = {t.id: t for t in teams}
+    return [by_id[tid] for tid in seen.values()] + kept_without_sofa
 
 
 @router.get("/{team_id}", response_model=TeamResponse)
