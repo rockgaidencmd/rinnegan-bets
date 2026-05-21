@@ -42,9 +42,14 @@ export default function TeamDetailModal({ team, onClose }) {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Mantenemos el último team válido para que el body no crashee
+  // durante la animación de cierre del Modal (team pasa a null pero
+  // el contenido sigue en pantalla unos frames).
+  const [renderTeam, setRenderTeam] = useState(team);
 
   useEffect(() => {
     if (!team) return;
+    setRenderTeam(team);
     let ignore = false;
     setLoading(true);
     setError(null);
@@ -79,9 +84,9 @@ export default function TeamDetailModal({ team, onClose }) {
         <View style={styles.sheet}>
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.teamName}>{team?.name}</Text>
+              <Text style={styles.teamName}>{renderTeam?.name}</Text>
               <Text style={styles.teamMeta}>
-                {team?.league} · {team?.country || '—'}
+                {renderTeam?.league} · {renderTeam?.country || '—'}
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={12}>
@@ -102,7 +107,7 @@ export default function TeamDetailModal({ team, onClose }) {
               <Text style={styles.error}>{error}</Text>
             )}
 
-            {!loading && stats && (
+            {!loading && stats && renderTeam && (
               <>
                 <Section title={`Últimos ${stats.matches_analyzed} partidos`}>
                   <View style={styles.statsRow}>
@@ -141,8 +146,8 @@ export default function TeamDetailModal({ team, onClose }) {
                 {matches.length > 0 && (
                   <Section title={`Últimos ${matches.length} partidos jugados`}>
                     {matches.map((m) => {
-                      const r = resultFor(m, team.id);
-                      const isHome = m.home_team_id === team.id;
+                      const r = resultFor(m, renderTeam.id);
+                      const isHome = m.home_team_id === renderTeam.id;
                       const rival = isHome ? m.away_team_name : m.home_team_name;
                       return (
                         <View key={m.id} style={styles.matchRow}>
