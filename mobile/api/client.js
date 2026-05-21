@@ -78,4 +78,16 @@ export const api = {
 
   getBankrollHistory: (limit = 20) =>
     request(`/api/bankroll/history?limit=${limit}`),
+
+  deposit: (amount) =>
+    request('/api/bankroll/deposit', {
+      method: 'POST',
+      body: JSON.stringify({ amount }),
+    }),
+
+  withdraw: (amount) =>
+    request('/api/bankroll/withdraw', {
+      method: 'POST',
+      body: JSON.stringify({ amount }),
+    }),
 };

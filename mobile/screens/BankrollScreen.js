@@ -6,8 +6,15 @@ import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/client';
 import { RinneganColors as C } from '../constants/Colors';
 
@@ -34,6 +41,7 @@ export default function BankrollScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [modalMode, setModalMode] = useState(null); // 'deposit' | 'withdraw' | null
 
   const load = useCallback(async () => {
     setError(null);
@@ -105,6 +113,25 @@ export default function BankrollScreen() {
           </View>
         )}
 
+        {!loading && balance && (
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionDeposit]}
+              onPress={() => setModalMode('deposit')}
+            >
+              <Ionicons name="arrow-down" size={16} color={C.bg} />
+              <Text style={styles.actionDepositText}>Depositar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionWithdraw]}
+              onPress={() => setModalMode('withdraw')}
+            >
+              <Ionicons name="arrow-up" size={16} color={C.accent} />
+              <Text style={styles.actionWithdrawText}>Retirar</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {!loading && history.length > 0 && (
           <View style={styles.historySection}>
             <Text style={styles.sectionTitle}>Movimientos recientes</Text>
@@ -132,7 +159,96 @@ export default function BankrollScreen() {
           </View>
         )}
       </ScrollView>
+
+      <AmountModal
+        mode={modalMode}
+        onClose={() => setModalMode(null)}
+        onSuccess={async () => {
+          setModalMode(null);
+          await load();
+        }}
+      />
     </SafeAreaView>
+  );
+}
+
+function AmountModal({ mode, onClose, onSuccess }) {
+  const [amount, setAmount] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (mode) setAmount('');
+  }, [mode]);
+
+  const submit = async () => {
+    const value = parseFloat(amount);
+    if (!Number.isFinite(value) || value <= 0) {
+      Alert.alert('Monto inválido', 'Ingresa un número mayor a 0.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      if (mode === 'deposit') await api.deposit(value);
+      else await api.withdraw(value);
+      onSuccess();
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const isDeposit = mode === 'deposit';
+
+  return (
+    <Modal
+      visible={!!mode}
+      animationType="fade"
+      transparent
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        style={styles.modalBackdrop}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>
+            {isDeposit ? 'Depositar' : 'Retirar'} fondos
+          </Text>
+          <TextInput
+            style={styles.modalInput}
+            value={amount}
+            onChangeText={setAmount}
+            placeholder="0.00"
+            placeholderTextColor={C.textMuted}
+            keyboardType="decimal-pad"
+            autoFocus
+          />
+          <View style={styles.modalActions}>
+            <TouchableOpacity
+              style={[styles.modalBtn, styles.modalBtnGhost]}
+              onPress={onClose}
+              disabled={submitting}
+            >
+              <Text style={styles.modalBtnGhostText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalBtn, styles.modalBtnPrimary]}
+              onPress={submit}
+              disabled={submitting}
+            >
+              <Text style={styles.modalBtnPrimaryText}>
+                {submitting
+                  ? '...'
+                  : isDeposit
+                    ? 'Depositar'
+                    : 'Retirar'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
@@ -148,7 +264,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.borderActive,
     padding: 20,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   balanceLabel: {
     color: C.textMuted,
@@ -182,6 +298,37 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: 'monospace',
     marginTop: 2,
+  },
+
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  actionDeposit: { backgroundColor: C.accent },
+  actionWithdraw: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: C.accent,
+  },
+  actionDepositText: {
+    color: C.bg,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  actionWithdrawText: {
+    color: C.accent,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 
   historySection: { marginTop: 8 },
@@ -222,4 +369,60 @@ const styles = StyleSheet.create({
   },
   amountPositive: { color: C.success },
   amountNegative: { color: C.error },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: C.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 20,
+    gap: 16,
+  },
+  modalTitle: {
+    color: C.textPrimary,
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  modalInput: {
+    backgroundColor: C.surfaceAlt,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    color: C.textPrimary,
+    fontSize: 18,
+    fontFamily: 'monospace',
+  },
+  modalActions: { flexDirection: 'row', gap: 10 },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalBtnPrimary: { backgroundColor: C.accent },
+  modalBtnPrimaryText: {
+    color: C.bg,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  modalBtnGhost: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  modalBtnGhostText: {
+    color: C.textMuted,
+    fontWeight: '600',
+  },
 });

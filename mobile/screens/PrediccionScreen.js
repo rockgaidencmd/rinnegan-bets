@@ -152,7 +152,7 @@ function TeamPicker({ label, selected, onSelect, onClear }) {
       setSearching(true);
       try {
         const data = await api.searchTeams(query.trim());
-        setResults(data.teams || []);
+        setResults(data.results || []);
       } catch {
         setResults([]);
       } finally {

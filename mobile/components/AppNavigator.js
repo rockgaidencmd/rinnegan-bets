@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RinneganColors } from '../constants/Colors';
 
 import PartidosScreen from '../screens/PartidosScreen';
@@ -32,6 +33,7 @@ const ICON_BY_ROUTE = {
 };
 
 export default function AppNavigator() {
+  const insets = useSafeAreaInsets();
   return (
     <NavigationContainer theme={NavTheme}>
       <Tab.Navigator
@@ -52,8 +54,8 @@ export default function AppNavigator() {
             backgroundColor: RinneganColors.surface,
             borderTopColor: RinneganColors.border,
             paddingTop: 6,
-            paddingBottom: 6,
-            height: 64,
+            paddingBottom: 6 + insets.bottom,
+            height: 64 + insets.bottom,
           },
           headerStyle: {
             backgroundColor: RinneganColors.surface,
