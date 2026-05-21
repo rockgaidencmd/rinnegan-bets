@@ -79,6 +79,16 @@ export const api = {
   getTeamsByLeague: (code) =>
     request(`/api/leagues/${encodeURIComponent(code)}/teams`),
 
+  getTeamStats: (teamId) => request(`/api/teams/${teamId}/stats`),
+
+  listFixtures: ({ league, days = 7, limit = 20 } = {}) => {
+    const params = new URLSearchParams();
+    if (league) params.set('league', league);
+    params.set('days', days);
+    params.set('limit', limit);
+    return request(`/api/fixtures?${params.toString()}`);
+  },
+
   predict: (payload) =>
     request('/api/predictions', {
       method: 'POST',

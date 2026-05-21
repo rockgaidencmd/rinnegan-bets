@@ -16,8 +16,26 @@ import { api } from '../api/client';
 import { RinneganColors as C } from '../constants/Colors';
 
 const DEBOUNCE_MS = 300;
+const TZ = 'America/Guayaquil';
+
+function formatFixtureDate(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('es-EC', {
+      timeZone: TZ,
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '—';
+  }
+}
 
 export default function PrediccionScreen() {
+  const [mode, setMode] = useState('search'); // 'search' | 'fixtures'
   const [home, setHome] = useState(null);
   const [away, setAway] = useState(null);
   const [quota, setQuota] = useState('');
@@ -60,6 +78,25 @@ export default function PrediccionScreen() {
     setError(null);
   };
 
+  const pickFromFixture = (fixture) => {
+    if (!fixture.home_team_id || !fixture.away_team_id) {
+      setError('Este partido aún no tiene equipos enlazados en BD.');
+      return;
+    }
+    setHome({
+      id: fixture.home_team_id,
+      name: fixture.home_team_name,
+      league: fixture.league,
+    });
+    setAway({
+      id: fixture.away_team_id,
+      name: fixture.away_team_name,
+      league: fixture.league,
+    });
+    setMode('search');
+    setError(null);
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <KeyboardAvoidingView
@@ -70,79 +107,249 @@ export default function PrediccionScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          <TeamPicker
-            label="Equipo local"
-            selected={home}
-            onSelect={(t) => {
-              setHome(t);
-              if (away && away.league !== t.league) setAway(null);
-            }}
-            onClear={() => setHome(null)}
-            allowedLeague={away?.league}
-            excludeId={away?.id}
-          />
-
-          <TeamPicker
-            label="Equipo visitante"
-            selected={away}
-            onSelect={(t) => {
-              setAway(t);
-              if (home && home.league !== t.league) setHome(null);
-            }}
-            onClear={() => setAway(null)}
-            allowedLeague={home?.league}
-            excludeId={home?.id}
-          />
-
-          <View style={styles.row}>
-            <View style={styles.col}>
-              <Text style={styles.label}>Cuota</Text>
-              <TextInput
-                style={styles.input}
-                value={quota}
-                onChangeText={setQuota}
-                placeholder="2.50"
-                placeholderTextColor={C.textMuted}
-                keyboardType="decimal-pad"
-              />
-            </View>
-            <View style={styles.col}>
-              <Text style={styles.label}>Stake</Text>
-              <TextInput
-                style={styles.input}
-                value={stake}
-                onChangeText={setStake}
-                placeholder="10"
-                placeholderTextColor={C.textMuted}
-                keyboardType="decimal-pad"
-              />
-            </View>
+          <View style={styles.modeTabs}>
+            <ModeTab
+              icon="search"
+              label="Buscar equipos"
+              active={mode === 'search'}
+              onPress={() => setMode('search')}
+            />
+            <ModeTab
+              icon="calendar"
+              label="Próximos partidos"
+              active={mode === 'fixtures'}
+              onPress={() => setMode('fixtures')}
+            />
           </View>
 
-          <TouchableOpacity
-            style={[
-              styles.predictBtn,
-              !canPredict && styles.predictBtnDisabled,
-            ]}
-            onPress={runPredict}
-            disabled={!canPredict || predicting}
-          >
-            <Text style={styles.predictBtnText}>
-              {predicting ? 'Calculando...' : 'Predecir'}
-            </Text>
-          </TouchableOpacity>
-
-          {error && (
-            <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={18} color={C.error} />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
+          {mode === 'fixtures' && (
+            <FixtureBrowser onPick={pickFromFixture} />
           )}
 
-          {result && <ResultCard result={result} onReset={reset} />}
+          {mode === 'search' && (
+            <>
+              <TeamPicker
+                label="Equipo local"
+                selected={home}
+                onSelect={(t) => {
+                  setHome(t);
+                  if (away && away.league !== t.league) setAway(null);
+                }}
+                onClear={() => setHome(null)}
+                allowedLeague={away?.league}
+                excludeId={away?.id}
+              />
+
+              <TeamPicker
+                label="Equipo visitante"
+                selected={away}
+                onSelect={(t) => {
+                  setAway(t);
+                  if (home && home.league !== t.league) setHome(null);
+                }}
+                onClear={() => setAway(null)}
+                allowedLeague={home?.league}
+                excludeId={home?.id}
+              />
+
+              <View style={styles.row}>
+                <View style={styles.col}>
+                  <Text style={styles.label}>Cuota</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={quota}
+                    onChangeText={setQuota}
+                    placeholder="2.50"
+                    placeholderTextColor={C.textMuted}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+                <View style={styles.col}>
+                  <Text style={styles.label}>Monto</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={stake}
+                    onChangeText={setStake}
+                    placeholder="10"
+                    placeholderTextColor={C.textMuted}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.predictBtn,
+                  !canPredict && styles.predictBtnDisabled,
+                ]}
+                onPress={runPredict}
+                disabled={!canPredict || predicting}
+              >
+                <Text style={styles.predictBtnText}>
+                  {predicting ? 'Calculando...' : 'Predecir'}
+                </Text>
+              </TouchableOpacity>
+
+              {error && (
+                <View style={styles.errorBox}>
+                  <Ionicons name="alert-circle" size={18} color={C.error} />
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              )}
+
+              {result && <ResultCard result={result} onReset={reset} />}
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+// --- ModeTab: toggle entre "Buscar equipos" y "Próximos partidos" ---
+
+function ModeTab({ icon, label, active, onPress }) {
+  return (
+    <TouchableOpacity
+      style={[styles.modeTab, active && styles.modeTabActive]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <Ionicons
+        name={icon}
+        size={16}
+        color={active ? C.accent : C.textMuted}
+      />
+      <Text
+        style={[
+          styles.modeTabText,
+          active && styles.modeTabTextActive,
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+// --- FixtureBrowser: liga -> lista de fixtures próximos -> onPick ---
+
+function FixtureBrowser({ onPick }) {
+  const [leagues, setLeagues] = useState([]);
+  const [league, setLeague] = useState('');
+  const [fixtures, setFixtures] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    api
+      .listLeagues()
+      .then((d) => setLeagues(d.leagues || []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!league) {
+      setFixtures([]);
+      return;
+    }
+    let ignore = false;
+    setLoading(true);
+    api
+      .listFixtures({ league, days: 14, limit: 30 })
+      .then((d) => {
+        if (!ignore) setFixtures(d.fixtures || []);
+      })
+      .catch(() => {
+        if (!ignore) setFixtures([]);
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [league]);
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.label}>Liga</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.leagueChipsRow}
+      >
+        {leagues.map((l) => (
+          <TouchableOpacity
+            key={l.code}
+            style={[
+              styles.leagueChip,
+              league === l.code && styles.leagueChipActive,
+            ]}
+            onPress={() => setLeague(league === l.code ? '' : l.code)}
+          >
+            <Text
+              style={[
+                styles.leagueChipText,
+                league === l.code && styles.leagueChipTextActive,
+              ]}
+            >
+              {l.code}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {!league && (
+        <Text style={styles.emptyHint}>
+          Elige una liga para ver próximos partidos.
+        </Text>
+      )}
+
+      {loading && (
+        <ActivityIndicator
+          style={{ marginTop: 16 }}
+          color={C.accent}
+        />
+      )}
+
+      {!loading && league && fixtures.length === 0 && (
+        <Text style={styles.emptyHint}>
+          No hay partidos programados en los próximos 14 días.
+        </Text>
+      )}
+
+      {!loading && fixtures.length > 0 && (
+        <View style={{ marginTop: 8 }}>
+          {fixtures.map((f, i) => (
+            <TouchableOpacity
+              key={`${f.match_date}-${i}`}
+              style={styles.fixtureCard}
+              onPress={() => onPick(f)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.fixtureDate}>
+                {formatFixtureDate(f.match_date)}
+              </Text>
+              <View style={styles.fixtureTeams}>
+                <Text
+                  style={styles.fixtureTeam}
+                  numberOfLines={1}
+                >
+                  {f.home_team_name}
+                </Text>
+                <Text style={styles.fixtureVs}>vs</Text>
+                <Text
+                  style={[styles.fixtureTeam, { textAlign: 'right' }]}
+                  numberOfLines={1}
+                >
+                  {f.away_team_name}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -358,6 +565,93 @@ const styles = StyleSheet.create({
     color: C.textPrimary,
     fontSize: 14,
   },
+  modeTabs: {
+    flexDirection: 'row',
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 8,
+    padding: 4,
+    marginBottom: 4,
+  },
+  modeTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 6,
+  },
+  modeTabActive: {
+    backgroundColor: 'rgba(0, 245, 160, 0.12)',
+  },
+  modeTabText: {
+    color: C.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  modeTabTextActive: {
+    color: C.accent,
+  },
+
+  leagueChipsRow: {
+    gap: 6,
+    paddingVertical: 2,
+  },
+  leagueChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.surface,
+  },
+  leagueChipActive: {
+    borderColor: C.accent,
+    backgroundColor: 'rgba(0, 245, 160, 0.12)',
+  },
+  leagueChipText: {
+    color: C.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  leagueChipTextActive: {
+    color: C.accent,
+  },
+
+  fixtureCard: {
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 6,
+  },
+  fixtureDate: {
+    color: C.textMuted,
+    fontSize: 11,
+    fontFamily: 'monospace',
+    marginBottom: 6,
+    textTransform: 'capitalize',
+  },
+  fixtureTeams: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fixtureTeam: {
+    flex: 1,
+    color: C.textPrimary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  fixtureVs: {
+    color: C.textMuted,
+    fontSize: 11,
+    paddingHorizontal: 10,
+  },
+
   row: { flexDirection: 'row', gap: 12 },
   col: { flex: 1, gap: 6 },
 

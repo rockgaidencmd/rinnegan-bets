@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/client';
+import TeamDetailModal from '../components/TeamDetailModal';
 import { RinneganColors as C } from '../constants/Colors';
 
 export default function LigasScreen() {
@@ -19,6 +20,7 @@ export default function LigasScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(null);
+  const [selectedTeam, setSelectedTeam] = useState(null);
 
   const load = async () => {
     setError(null);
@@ -76,16 +78,22 @@ export default function LigasScreen() {
                 onToggle={() =>
                   setExpanded(expanded === l.code ? null : l.code)
                 }
+                onTeamPress={setSelectedTeam}
               />
             ))}
           </View>
         )}
       </ScrollView>
+
+      <TeamDetailModal
+        team={selectedTeam}
+        onClose={() => setSelectedTeam(null)}
+      />
     </SafeAreaView>
   );
 }
 
-function LeagueCard({ league, expanded, onToggle }) {
+function LeagueCard({ league, expanded, onToggle, onTeamPress }) {
   return (
     <View
       style={[
@@ -115,7 +123,9 @@ function LeagueCard({ league, expanded, onToggle }) {
         </View>
       </TouchableOpacity>
 
-      {expanded && <TeamsList leagueCode={league.code} />}
+      {expanded && (
+        <TeamsList leagueCode={league.code} onTeamPress={onTeamPress} />
+      )}
     </View>
   );
 }
@@ -129,7 +139,7 @@ function Stat({ value, label }) {
   );
 }
 
-function TeamsList({ leagueCode }) {
+function TeamsList({ leagueCode, onTeamPress }) {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -174,11 +184,16 @@ function TeamsList({ leagueCode }) {
   return (
     <View style={styles.teamsGrid}>
       {teams.map((t) => (
-        <View key={t.id} style={styles.teamChip}>
+        <TouchableOpacity
+          key={t.id}
+          style={styles.teamChip}
+          onPress={() => onTeamPress?.(t)}
+          activeOpacity={0.7}
+        >
           <Text style={styles.teamChipText} numberOfLines={1}>
             {t.name}
           </Text>
-        </View>
+        </TouchableOpacity>
       ))}
     </View>
   );
@@ -253,14 +268,16 @@ const styles = StyleSheet.create({
   },
   teamChip: {
     backgroundColor: C.surfaceAlt,
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     maxWidth: '100%',
   },
   teamChipText: {
     color: C.textPrimary,
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
   },
   teamsError: {
