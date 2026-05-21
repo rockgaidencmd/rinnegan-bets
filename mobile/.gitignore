@@ -1,6 +1,10 @@
 node_modules/
 .expo/
 dist/
+
+# The root .gitignore excludes *.db, but mobile bundles the initial
+# pre-populated snapshot as an asset — un-ignore it here.
+!assets/rinnegan-initial.db
 npm-debug.*
 *.jks
 *.p8
