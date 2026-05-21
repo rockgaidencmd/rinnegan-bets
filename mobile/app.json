@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Rinnegan Bets",
+    "slug": "rinnegan-bets-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#080a0f"
+    },
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "edgeToEdgeEnabled": true,
+      "package": "com.ajcr9496.rinneganbets"
+    },
+    "web": {},
+    "extra": {
+      "apiUrl": "http://192.168.1.100:8000"
+    }
+  }
+}
