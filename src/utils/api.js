@@ -57,7 +57,7 @@ export const api = {
 
   getTeamsByLeague: (code) => request(`/api/leagues/${code}/teams`),
 
-  listMatches: ({ league, team_id, limit = 20, offset = 0 } = {}) => {
+  listMatches: ({ league, team_id, limit = 25, offset = 0 } = {}) => {
     const params = new URLSearchParams();
     if (league) params.set('league', league);
     if (team_id) params.set('team_id', team_id);

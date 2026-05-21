@@ -61,7 +61,7 @@ def list_matches(
     db: DbSession,
     league: str | None = Query(None, description="Filter by league code"),
     team_id: int | None = Query(None, description="Filter by team participation"),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(25, ge=1, le=100),
     offset: int = Query(0, ge=0, description="Skip this many rows (pagination)"),
 ) -> MatchListResponse:
     """List recent finished matches with offset/limit pagination.
