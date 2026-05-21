@@ -65,9 +65,10 @@ async function request(path, options = {}) {
 export const api = {
   listLeagues: () => request('/api/leagues'),
 
-  listMatches: ({ league, limit = 25, offset = 0 } = {}) => {
+  listMatches: ({ league, team_id, limit = 25, offset = 0 } = {}) => {
     const params = new URLSearchParams();
     if (league) params.set('league', league);
+    if (team_id) params.set('team_id', team_id);
     params.set('limit', limit);
     params.set('offset', offset);
     return request(`/api/matches?${params.toString()}`);
