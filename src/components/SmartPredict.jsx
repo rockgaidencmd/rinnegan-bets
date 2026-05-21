@@ -21,6 +21,8 @@ export function SmartPredict() {
       <PredictionResult
         prediction={form.prediction}
         availableBalance={balance?.available || 0}
+        homeTeam={form.home}
+        awayTeam={form.away}
         onReset={form.reset}
       />
     );

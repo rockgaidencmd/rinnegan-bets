@@ -1,4 +1,5 @@
 import { useLeagues } from '../hooks/useLeagues.js';
+import { TeamsComparison } from './TeamsComparison.jsx';
 
 
 /**
@@ -22,7 +23,7 @@ const MODEL_LABEL = {
 };
 
 
-export function PredictionResult({ prediction, availableBalance, onReset }) {
+export function PredictionResult({ prediction, availableBalance, homeTeam, awayTeam, onReset }) {
   const v = VERDICT_CONFIG[prediction.verdict];
   const { leagues } = useLeagues();
   const leagueInfo = leagues.find((l) => l.code === prediction.league);
@@ -136,6 +137,10 @@ export function PredictionResult({ prediction, availableBalance, onReset }) {
             </div>
           )}
         </div>
+      )}
+
+      {homeTeam && awayTeam && (
+        <TeamsComparison home={homeTeam} away={awayTeam} />
       )}
 
       <button className="btn btn-outline" onClick={onReset} type="button">

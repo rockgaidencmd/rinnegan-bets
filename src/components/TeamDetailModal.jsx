@@ -1,44 +1,21 @@
-import { useEffect, useState } from 'react';
-import { api } from '../utils/api.js';
-import { formatDateShort } from '../utils/dates.js';
+import { useEffect } from 'react';
+import { useTeamData } from '../hooks/useTeamData.js';
+import { MatchHistory } from './MatchHistory.jsx';
 
 
 export function TeamDetailModal({ team, onClose }) {
-  const [stats, setStats] = useState(null);
-  const [matches, setMatches] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { stats, matches, loading } = useTeamData(team.id);
 
   useEffect(() => {
-    let ignore = false;
-    (async () => {
-      try {
-        const [statsData, matchesData] = await Promise.all([
-          api.getTeamStats(team.id, 10),
-          api.listMatches({ team_id: team.id, limit: 10 }),
-        ]);
-        if (!ignore) {
-          setStats(statsData);
-          setMatches(matchesData.matches);
-        }
-      } catch {
-        if (!ignore) {
-          setStats(null);
-        }
-      } finally {
-        if (!ignore) {
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      ignore = true;
-    };
-  }, [team.id]);
+    const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [onClose]);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} type="button">×</button>
+        <button className="modal-close" onClick={onClose} type="button" aria-label="Cerrar">×</button>
 
         <div className="modal-header">
           <div className="modal-team-name">{team.name}</div>
@@ -101,38 +78,7 @@ export function TeamDetailModal({ team, onClose }) {
 
             <div className="modal-section">
               <div className="modal-section-title">Últimos {matches.length} partidos jugados</div>
-              <div className="match-history">
-                {matches.map((m) => {
-                  const isHome = m.home_team_id === team.id;
-                  const teamGoals = isHome ? m.home_goals : m.away_goals;
-                  const oppGoals = isHome ? m.away_goals : m.home_goals;
-                  const oppName = isHome ? m.away_team_name : m.home_team_name;
-                  const won = teamGoals > oppGoals;
-                  const drew = teamGoals === oppGoals;
-                  const resultClass = won ? 'res-w' : drew ? 'res-d' : 'res-l';
-                  const resultLetter = won ? 'G' : drew ? 'E' : 'P';
-                  const teamXg = isHome ? m.home_xg : m.away_xg;
-                  const oppXg = isHome ? m.away_xg : m.home_xg;
-                  const dateStr = formatDateShort(m.match_date);
-                  return (
-                    <div key={m.id} className="match-row">
-                      <span className={`match-result ${resultClass}`}>{resultLetter}</span>
-                      <span className="match-date-small mono">{dateStr}</span>
-                      <span className="match-vs">{isHome ? 'vs' : 'en'}</span>
-                      <span className="match-opp">{oppName}</span>
-                      <span className="match-league-tag mono">{m.league}</span>
-                      <span className="match-score mono">
-                        {teamGoals}-{oppGoals}
-                      </span>
-                      {teamXg !== null && (
-                        <span className="match-xg mono">
-                          xG: {teamXg?.toFixed(1)}-{oppXg?.toFixed(1)}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              <MatchHistory teamId={team.id} matches={matches} />
             </div>
           </>
         )}

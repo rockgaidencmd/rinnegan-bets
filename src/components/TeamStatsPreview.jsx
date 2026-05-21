@@ -1,38 +1,12 @@
-import { useEffect, useState } from 'react';
-import { api } from '../utils/api.js';
+import { useTeamData } from '../hooks/useTeamData.js';
 
 
 /**
- * TeamStatsPreview — fetches recent stats for a team and shows a compact summary.
+ * TeamStatsPreview — compact stat strip shown under the autocomplete-selected team.
+ * Uses the shared useTeamData hook so the same fetch logic lives in one place.
  */
 export function TeamStatsPreview({ teamId, last = 10 }) {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!teamId) return;
-    let ignore = false;
-    setLoading(true);
-    (async () => {
-      try {
-        const data = await api.getTeamStats(teamId, last);
-        if (!ignore) {
-          setStats(data);
-        }
-      } catch {
-        if (!ignore) {
-          setStats(null);
-        }
-      } finally {
-        if (!ignore) {
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      ignore = true;
-    };
-  }, [teamId, last]);
+  const { stats, loading } = useTeamData(teamId, { matchesLimit: last });
 
   if (loading) {
     return (
