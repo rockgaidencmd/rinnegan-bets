@@ -48,8 +48,16 @@ async function request(path, options = {}) {
     ...options,
   });
   if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status}: ${body || res.statusText}`);
+    // El backend devuelve { title, detail, status } via register_exception_handlers.
+    // Preferimos `detail` legible; caemos al statusText si la respuesta no es JSON.
+    let message = res.statusText || `HTTP ${res.status}`;
+    try {
+      const json = await res.json();
+      message = json.detail || json.message || json.title || message;
+    } catch {
+      // not JSON — mantenemos statusText
+    }
+    throw new Error(message);
   }
   return res.json();
 }

@@ -73,7 +73,11 @@ export default function PrediccionScreen() {
           <TeamPicker
             label="Equipo local"
             selected={home}
-            onSelect={setHome}
+            onSelect={(t) => {
+              setHome(t);
+              // Si el visitante ya elegido no es de la misma liga, lo limpiamos.
+              if (away && away.league !== t.league) setAway(null);
+            }}
             onClear={() => setHome(null)}
           />
 
@@ -82,6 +86,7 @@ export default function PrediccionScreen() {
             selected={away}
             onSelect={setAway}
             onClear={() => setAway(null)}
+            allowedLeague={home?.league}
           />
 
           <View style={styles.row}>
@@ -138,7 +143,7 @@ export default function PrediccionScreen() {
 
 // --- TeamPicker: typeahead search ---
 
-function TeamPicker({ label, selected, onSelect, onClear }) {
+function TeamPicker({ label, selected, onSelect, onClear, allowedLeague }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -152,7 +157,13 @@ function TeamPicker({ label, selected, onSelect, onClear }) {
       setSearching(true);
       try {
         const data = await api.searchTeams(query.trim());
-        setResults(data.results || []);
+        const all = data.results || [];
+        // Si ya hay local elegido, solo mostramos equipos de su misma liga —
+        // así evitamos cruces que el backend rechazaría con 404.
+        const filtered = allowedLeague
+          ? all.filter((t) => t.league === allowedLeague)
+          : all;
+        setResults(filtered);
       } catch {
         setResults([]);
       } finally {
@@ -160,7 +171,7 @@ function TeamPicker({ label, selected, onSelect, onClear }) {
       }
     }, DEBOUNCE_MS);
     return () => clearTimeout(id);
-  }, [query, selected]);
+  }, [query, selected, allowedLeague]);
 
   if (selected) {
     return (
@@ -196,7 +207,11 @@ function TeamPicker({ label, selected, onSelect, onClear }) {
         style={styles.input}
         value={query}
         onChangeText={setQuery}
-        placeholder="Buscar equipo..."
+        placeholder={
+          allowedLeague
+            ? `Buscar en ${allowedLeague}...`
+            : 'Buscar equipo...'
+        }
         placeholderTextColor={C.textMuted}
         autoCapitalize="words"
         autoCorrect={false}
@@ -208,6 +223,14 @@ function TeamPicker({ label, selected, onSelect, onClear }) {
           style={{ marginTop: 6 }}
         />
       )}
+      {!searching &&
+        query.trim().length >= 2 &&
+        results.length === 0 &&
+        allowedLeague && (
+          <Text style={styles.emptyHint}>
+            Ningún equipo de {allowedLeague} con ese nombre.
+          </Text>
+        )}
       {results.length > 0 && (
         <View style={styles.suggestions}>
           {results.map((t) => (
@@ -347,6 +370,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
+  emptyHint: {
+    color: C.textMuted,
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 6,
+    paddingHorizontal: 4,
+  },
   suggestions: {
     backgroundColor: C.surface,
     borderWidth: 1,
