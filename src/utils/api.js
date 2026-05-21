@@ -65,6 +65,11 @@ export const api = {
     return request(`/api/matches?${params.toString()}`);
   },
 
+  listFixtures: ({ league, days = 7, limit = 20 } = {}) => {
+    const params = new URLSearchParams({ league, days, limit });
+    return request(`/api/fixtures?${params.toString()}`);
+  },
+
   // Predictions
   predict: (body) =>
     request('/api/predictions', {

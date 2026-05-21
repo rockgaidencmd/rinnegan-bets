@@ -63,6 +63,47 @@ def parse_team_performance(payload: dict) -> list[ParsedMatch]:
     return parsed
 
 
+def parse_upcoming_fixtures(payload: dict) -> list[ParsedMatch]:
+    """Parse fixtures that haven't been played yet (status='notstarted').
+
+    Same shape as ParsedMatch but with goals/result/stats all None.
+    Used to power the "predict an upcoming match" picker.
+    """
+    events = payload.get("events", [])
+    parsed: list[ParsedMatch] = []
+
+    for event in events:
+        status = event.get("status", {}).get("type")
+        if status != "notstarted":
+            continue
+        if not _is_valid_event(event):
+            continue
+
+        tournament_id = (
+            event.get("tournament", {})
+            .get("uniqueTournament", {})
+            .get("id")
+        )
+        league_code = SOFASCORE_TOURNAMENT_TO_LEAGUE.get(tournament_id)
+        if league_code is None:
+            continue
+
+        parsed.append(ParsedMatch(
+            external_id=str(event["id"]),
+            source="sofascore",
+            league=league_code,
+            home_team_sofascore_id=event["homeTeam"]["id"],
+            away_team_sofascore_id=event["awayTeam"]["id"],
+            home_team_name=event["homeTeam"]["name"],
+            away_team_name=event["awayTeam"]["name"],
+            match_date=datetime.fromtimestamp(event["startTimestamp"], tz=timezone.utc),
+            status=status,
+            # Goals/result/stats all default to None for unplayed fixtures
+        ))
+
+    return parsed
+
+
 def merge_statistics(match: ParsedMatch, stats_payload: dict) -> ParsedMatch:
     """Merge an event's statistics payload into an existing ParsedMatch.
 

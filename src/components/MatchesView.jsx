@@ -1,31 +1,14 @@
 import { useEffect, useState } from 'react';
 import { api } from '../utils/api.js';
+import { useLeagues } from '../hooks/useLeagues.js';
 import { formatDateShort } from '../utils/dates.js';
 
 
 export function MatchesView() {
   const [matches, setMatches] = useState([]);
-  const [leagues, setLeagues] = useState([]);
   const [filterLeague, setFilterLeague] = useState('');
   const [loading, setLoading] = useState(true);
-
-  // Load league list once
-  useEffect(() => {
-    let ignore = false;
-    (async () => {
-      try {
-        const data = await api.listLeagues();
-        if (!ignore) {
-          setLeagues(data.leagues);
-        }
-      } catch {
-        // ignore — leagues filter is optional
-      }
-    })();
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  const { leagues } = useLeagues();
 
   // Re-fetch matches whenever the filter changes
   useEffect(() => {

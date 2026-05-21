@@ -1,9 +1,9 @@
 import { useBankroll } from '../hooks/useBankroll.js';
 import { usePredictionForm } from '../hooks/usePredictionForm.js';
 import { ContextStep } from './ContextStep.jsx';
+import { FixturePicker } from './FixturePicker.jsx';
 import { PredictionResult } from './PredictionResult.jsx';
 import { QuotaStakeStep } from './QuotaStakeStep.jsx';
-import { TeamPickerStep } from './TeamPickerStep.jsx';
 
 
 /**
@@ -28,7 +28,7 @@ export function SmartPredict() {
 
   return (
     <>
-      <TeamPickerStep
+      <FixturePicker
         home={form.home}
         away={form.away}
         onHomeChange={form.setHome}

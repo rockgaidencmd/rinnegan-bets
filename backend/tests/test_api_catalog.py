@@ -122,10 +122,18 @@ class TestLeagueList:
         assert pl["team_count"] == 2
         assert pl["match_count"] == 1
 
-    def test_empty_db_returns_empty_list(self, client):
+    def test_empty_db_returns_all_supported_leagues_with_zero_counts(self, client):
+        """Endpoint exposes the catalog from core.leagues — present even if BD is empty."""
+        from core.leagues import LEAGUES
         resp = client.get("/api/leagues")
         assert resp.status_code == 200
-        assert resp.json()["total"] == 0
+        data = resp.json()
+        # Catalog from LEAGUES is exposed regardless of DB content
+        assert data["total"] == len(LEAGUES)
+        # All counts are 0 since DB is empty
+        for league in data["leagues"]:
+            assert league["team_count"] == 0
+            assert league["match_count"] == 0
 
 
 # --- /api/leagues/{code}/teams ---

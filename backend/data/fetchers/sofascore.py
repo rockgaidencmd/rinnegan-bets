@@ -88,6 +88,24 @@ class SofaScoreFetcher(BaseFetcher):
             ttl=timedelta(hours=6),
         )
 
+    def get_tournament_upcoming(
+        self, tournament_id: int, season_id: int, page: int = 0,
+    ) -> dict:
+        """Upcoming (not-yet-played) matches for a tournament season.
+
+        Cache: 30 min (fixtures rarely change once scheduled, but TBD games
+        get times set as match day approaches).
+        """
+        url = (
+            f"{BASE_URL}/unique-tournament/{tournament_id}"
+            f"/season/{season_id}/events/next/{page}"
+        )
+        return self._fetch_json(
+            url,
+            cache_key=self._cache_key("tournament_upcoming", tournament_id, season_id, page),
+            ttl=timedelta(minutes=30),
+        )
+
     def get_tournament_round_events(
         self, tournament_id: int, season_id: int, round_num: int,
     ) -> dict:

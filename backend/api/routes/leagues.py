@@ -20,7 +20,11 @@ router = APIRouter(prefix="/api", tags=["catalog"])
 
 @router.get("/leagues", response_model=LeagueListResponse)
 def list_leagues(db: DbSession) -> LeagueListResponse:
-    """All leagues with team + match counts."""
+    """All supported leagues from core/leagues.py with current team + match counts.
+
+    Returns every league the app supports — even ones with 0 teams/matches.
+    The frontend uses this as the canonical league catalog (no hardcoding).
+    """
     team_counts = dict(db.execute(
         select(Team.league, func.count(Team.id)).group_by(Team.league)
     ).all())
@@ -28,17 +32,16 @@ def list_leagues(db: DbSession) -> LeagueListResponse:
         select(Match.league, func.count(Match.id)).group_by(Match.league)
     ).all())
 
-    leagues = []
-    for code in sorted(team_counts.keys() | match_counts.keys()):
-        info = LEAGUES.get(code)
-        leagues.append(LeagueSummary(
-            code=code,
-            name=info.name if info else code,
-            country=info.country if info else None,
-            team_count=team_counts.get(code, 0),
-            match_count=match_counts.get(code, 0),
-        ))
-
+    leagues = [
+        LeagueSummary(
+            code=info.code,
+            name=info.name,
+            country=info.country,
+            team_count=team_counts.get(info.code, 0),
+            match_count=match_counts.get(info.code, 0),
+        )
+        for info in sorted(LEAGUES.values(), key=lambda i: i.name)
+    ]
     return LeagueListResponse(leagues=leagues, total=len(leagues))
 
 
