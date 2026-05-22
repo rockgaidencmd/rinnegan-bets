@@ -29,7 +29,7 @@
       [
         "expo-asset",
         {
-          "assets": ["./assets/rinnegan-initial.db"]
+          "assets": ["./assets/rinnegan_initial.db"]
         }
       ]
     ]

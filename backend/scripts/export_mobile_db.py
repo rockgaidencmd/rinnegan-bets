@@ -1,7 +1,7 @@
 """Export a slim, pre-populated SQLite for the mobile app to bundle.
 
 The mobile app (Expo, standalone — no FastAPI backend) ships
-`mobile/assets/rinnegan-initial.db` and copies it to the device's
+`mobile/assets/rinnegan_initial.db` and copies it to the device's
 writable storage on first launch. After that, the app reads/writes
 locally. This script generates that file from the current backend DB.
 
@@ -37,7 +37,7 @@ except ImportError:
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC_DB = REPO_ROOT / "backend" / "rinnegan.db"
-DEST_DB = REPO_ROOT / "mobile" / "assets" / "rinnegan-initial.db"
+DEST_DB = REPO_ROOT / "mobile" / "assets" / "rinnegan_initial.db"
 BACKEND_URL = "http://localhost:8000"
 
 # Same league codes / model families as core/leagues.py — duplicated

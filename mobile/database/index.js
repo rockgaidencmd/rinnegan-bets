@@ -1,6 +1,6 @@
 // Standalone SQLite database for the app.
 //
-// On first launch we copy the bundled assets/rinnegan-initial.db into
+// On first launch we copy the bundled assets/rinnegan_initial.db into
 // the device's writable documents dir and open it. On subsequent
 // launches we just open the writable copy — user data (bets, bankroll
 // snapshots, predictions) persists across sessions.
@@ -17,7 +17,7 @@ import { Asset } from 'expo-asset';
 
 const DB_NAME = 'rinnegan.db';
 // The Asset module resolves this require() to a content URI at runtime.
-const INITIAL_DB_ASSET = require('../assets/rinnegan-initial.db');
+const INITIAL_DB_ASSET = require('../assets/rinnegan_initial.db');
 
 let _db = null;
 let _openPromise = null;

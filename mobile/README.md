@@ -16,7 +16,7 @@ No necesitas el backend corriendo para usarla.
 
 ## Regenerar el snapshot inicial
 
-`mobile/assets/rinnegan-initial.db` es la BDD bundleada con la app.
+`mobile/assets/rinnegan_initial.db` es la BDD bundleada con la app.
 Para refrescarla desde tu BDD local de desarrollo:
 
 ```bash
@@ -50,7 +50,7 @@ mobile/
 ├── metro.config.js           agrega 'db' a resolver.assetExts
 │
 ├── assets/
-│   └── rinnegan-initial.db   snapshot bundleado (~0.5 MB)
+│   └── rinnegan_initial.db   snapshot bundleado (~0.5 MB)
 │
 ├── database/
 │   ├── index.js              openDatabase / getDb / resetDb
@@ -97,7 +97,7 @@ mobile/
 **R2 — Descargar `snapshot.db` desde un host estático — IMPLEMENTADO**
 
 La URL vive en `mobile/constants/Refresh.js` apuntando al raw de
-GitHub del `mobile/assets/rinnegan-initial.db` en una rama definida.
+GitHub del `mobile/assets/rinnegan_initial.db` en una rama definida.
 Botón "Actualizar data" en Ajustes hace:
 
 1. Descarga el `.db` remoto a un archivo temporal en `SQLite/`
@@ -116,7 +116,7 @@ Si algo falla → `ROLLBACK` y la BDD local queda intacta.
 ```bash
 cd backend && source venv/bin/activate
 python scripts/export_mobile_db.py
-git add mobile/assets/rinnegan-initial.db
+git add mobile/assets/rinnegan_initial.db
 git commit -m "data(mobile): refresh snapshot"
 git push                # raw URL queda actualizada al instante
 ```
