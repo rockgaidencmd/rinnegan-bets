@@ -92,34 +92,50 @@ mobile/
     └── SettingsScreen.js     about + regenerar BDD
 ```
 
-## Estrategia de refresh (NO IMPLEMENTADA — opciones)
+## Estrategia de refresh
 
-La app arranca con un snapshot estático. Para que los datos se
-actualicen sin rebuild, hay 3 caminos pendientes:
+**R2 — Descargar `snapshot.db` desde un host estático — IMPLEMENTADO**
+
+La URL vive en `mobile/constants/Refresh.js` apuntando al raw de
+GitHub del `mobile/assets/rinnegan-initial.db` en una rama definida.
+Botón "Actualizar data" en Ajustes hace:
+
+1. Descarga el `.db` remoto a un archivo temporal en `SQLite/`
+2. Valida que sea SQLite válido y tenga las tablas esperadas
+3. `ATTACH` del archivo temp y dentro de una transacción:
+   - `INSERT OR REPLACE INTO teams SELECT * FROM remote.teams`
+   - `INSERT OR REPLACE INTO matches SELECT * FROM remote.matches`
+   - `DELETE FROM fixtures; INSERT INTO fixtures SELECT ... FROM remote.fixtures`
+4. **Nunca toca** `predictions / bets / bankroll_snapshots / meta` —
+   las apuestas y el banco del usuario se preservan.
+5. Guarda `last_refresh_at` en `meta` para mostrar timestamp en UI.
+
+Si algo falla → `ROLLBACK` y la BDD local queda intacta.
+
+**Para publicar una versión nueva de data:**
+```bash
+cd backend && source venv/bin/activate
+python scripts/export_mobile_db.py
+git add mobile/assets/rinnegan-initial.db
+git commit -m "data(mobile): refresh snapshot"
+git push                # raw URL queda actualizada al instante
+```
+
+Tu hermano toca "Actualizar data" en Ajustes → baja el nuevo `.db`.
+
+### Otras opciones consideradas (no implementadas)
 
 **R1 — Cliente pega directo a SofaScore desde el celular**
-  - En nativo no aplica CORS, así que es factible
-  - Botón "Actualizar data" en Ajustes que itera ligas y mete partidos
-    nuevos en SQLite local
+  - En nativo no aplica CORS, factible
+  - Botón en Ajustes itera ligas y mete partidos nuevos en SQLite
   - Pro: cero dependencia externa
   - Contra: SofaScore es API no oficial; hay que portar los parsers
     del backend (`backend/data/sofascore/*`) a JS
 
-**R2 — Descargar `snapshot.db` desde un host estático**
-  - Subir periódicamente el output de `export_mobile_db.py` a GitHub
-    raw o un bucket público
-  - Cliente baja el `.db` y reemplaza el writable local
-  - Pro: lógica de fetch queda en Python; el cliente solo descarga
-  - Contra: necesita un proceso (cron / manual) que regenere y suba
-
 **R3 — Expo OTA updates con BDD nueva**
   - `eas update` con el asset actualizado
-  - Pro: nativo de Expo, sin código adicional
-  - Contra: requiere eas + el .db cuenta como asset cambiado y dispara
-    un download grande cada vez
-
-Recomendación cuando llegue el momento: **R2** (más simple, separa
-concerns) o **R1** si se quiere 100% offline-self-sufficient.
+  - Pro: nativo de Expo
+  - Contra: requiere eas + el `.db` dispara un download grande cada vez
 
 ## TODOs conocidos
 

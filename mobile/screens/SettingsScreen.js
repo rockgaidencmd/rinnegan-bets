@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,71 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import { resetDb } from '../database';
+import { refreshFromRemote } from '../database/refresh';
+import { getMeta } from '../database/meta';
+import { SNAPSHOT_URL } from '../constants/Refresh';
 import { RinneganColors as C } from '../constants/Colors';
+
+function formatLastRefresh(iso) {
+  if (!iso) return 'Nunca actualizado';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return 'Nunca actualizado';
+  const date = d.toLocaleDateString('es-EC', {
+    day: '2-digit', month: 'short', year: 'numeric',
+  });
+  const time = d.toLocaleTimeString('es-EC', {
+    hour: '2-digit', minute: '2-digit',
+  });
+  return date + ' ' + time;
+}
 
 export default function SettingsScreen() {
   const [resetting, setResetting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState(null);
   const version = Constants.expoConfig?.version || '0.1.0';
+
+  const loadLastRefresh = useCallback(() => {
+    try {
+      setLastRefresh(getMeta('last_refresh_at'));
+    } catch {
+      setLastRefresh(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLastRefresh();
+  }, [loadLastRefresh]);
+
+  const handleRefresh = () => {
+    Alert.alert(
+      'Actualizar data',
+      'Descarga el snapshot más reciente (equipos, partidos jugados y próximos). Tus apuestas y banca no se tocan.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Actualizar',
+          onPress: async () => {
+            setRefreshing(true);
+            try {
+              const result = await refreshFromRemote(SNAPSHOT_URL);
+              loadLastRefresh();
+              Alert.alert(
+                'Listo',
+                'Equipos: ' + result.teams + '\n' +
+                'Partidos: ' + result.matches + '\n' +
+                'Próximos: ' + result.fixtures,
+              );
+            } catch (e) {
+              Alert.alert('No se pudo actualizar', e.message);
+            } finally {
+              setRefreshing(false);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const handleReset = () => {
     Alert.alert(
@@ -30,6 +90,7 @@ export default function SettingsScreen() {
             setResetting(true);
             try {
               await resetDb();
+              loadLastRefresh();
               Alert.alert('Listo', 'BDD restaurada. Reabre la app si ves datos viejos en cache.');
             } catch (e) {
               Alert.alert('Error', e.message);
@@ -50,7 +111,24 @@ export default function SettingsScreen() {
           <Text style={styles.version}>v{version}</Text>
           <Text style={styles.note}>
             App standalone — todos los datos viven en este dispositivo.
-            No requiere internet ni servidor.
+            Puedes actualizar el catálogo de partidos cuando quieras.
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Datos</Text>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={handleRefresh}
+            disabled={refreshing}
+          >
+            <Ionicons name="cloud-download" size={16} color={C.bg} />
+            <Text style={styles.primaryBtnText}>
+              {refreshing ? 'Actualizando...' : 'Actualizar data'}
+            </Text>
+          </TouchableOpacity>
+          <Text style={styles.hint}>
+            Última actualización: {formatLastRefresh(lastRefresh)}
           </Text>
         </View>
 
@@ -112,6 +190,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
+  },
+  primaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: C.accent,
+  },
+  primaryBtnText: {
+    color: C.bg,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   dangerBtn: {
     flexDirection: 'row',

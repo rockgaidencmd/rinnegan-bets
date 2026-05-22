@@ -53,6 +53,14 @@ export async function openDatabase() {
     // Foreign keys are off by default in SQLite — turn on so our FK
     // constraints (bets -> predictions, etc) actually fire.
     _db.execSync('PRAGMA foreign_keys = ON;');
+    // meta no viene en el snapshot bundleado — se crea aquí para
+    // que el refresh remoto pueda guardar last_refresh_at, etc.
+    _db.execSync(
+      'CREATE TABLE IF NOT EXISTS meta (' +
+      '  key TEXT PRIMARY KEY,' +
+      '  value TEXT' +
+      ');',
+    );
     return _db;
   })();
 
