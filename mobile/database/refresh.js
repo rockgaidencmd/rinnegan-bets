@@ -40,9 +40,12 @@ function tempPath() {
 
 function buildAttachStatement(absolutePath) {
   // SQLite no soporta bind params en ATTACH. El path es app-controlled
-  // (siempre el mismo archivo temp), no es entrada del usuario. Escapamos
-  // single quotes por buena medida.
-  const escaped = absolutePath.replace(/'/g, "''");
+  // (siempre el mismo archivo temp), no es entrada del usuario.
+  // Strip del prefijo file:// porque expo-file-system devuelve URIs
+  // pero el motor nativo de SQLite espera path filesystem plano.
+  // Escapamos single quotes por buena medida.
+  const cleaned = absolutePath.replace(/^file:\/\//, '');
+  const escaped = cleaned.replace(/'/g, "''");
   return "ATTACH DATABASE '" + escaped + "' AS remote;";
 }
 
