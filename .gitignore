@@ -10,6 +10,9 @@
 # Node.js
 node_modules/
 package-lock.json
+# La app mobile sí necesita commitear su lockfile (EAS Build lo
+# requiere para builds reproducibles).
+!mobile/package-lock.json
 dist/
 .env
 .env.local
@@ -47,6 +50,9 @@ ENV/
 *.sqlite
 *.sqlite3
 rinnegan.db
+# Excepción: el snapshot bundleado con la app mobile sí va al repo
+# (EAS Build lo necesita para empaquetarlo como Android asset).
+!mobile/assets/rinnegan_initial.db
 
 # Evaluation run outputs (scripts are committed, results are not)
 backend/evaluations/runs/*

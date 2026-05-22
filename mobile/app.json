@@ -29,9 +29,12 @@
       [
         "expo-asset",
         {
-          "assets": ["./assets/rinnegan_initial.db"]
+          "assets": [
+            "./assets/rinnegan_initial.db"
+          ]
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }
